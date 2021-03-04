@@ -20,7 +20,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ac46a3d4-028f-437f-8a9b-24f6d84a29ed" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wx/wx.go" beforeDir="false" afterPath="$PROJECT_DIR$/wechatx/wechatx.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -113,7 +114,7 @@
       <workItem from="1614533232510" duration="5481000" />
       <workItem from="1614658617460" duration="2067000" />
       <workItem from="1614740159647" duration="658000" />
-      <workItem from="1614865253068" duration="2083000" />
+      <workItem from="1614865253068" duration="2775000" />
     </task>
     <servers />
   </component>

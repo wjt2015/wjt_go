@@ -1,4 +1,4 @@
-package wechat
+package wechatx
 
 import (
 	_ "flag"
