@@ -9,13 +9,11 @@ import (
 
 func main() {
 	fmt.Println("hello golang!")
-	spider()
+	//spider()
+	wx.WxFunc()
 	fmt.Println(strconv.Quote("abcd"))
 }
 
-func wx() {
-
-}
 func spider() {
 	c := colly.NewCollector()
 
