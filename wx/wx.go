@@ -11,5 +11,10 @@ import (
 )
 
 func WxFunc() {
+ session,err:=wxweb.CreateSession(nil,nil,wxweb.TERMINAL_MODE)
+
+ logrus.Infof("session=%+v;err=%+v;",session,err)
+
+
 
 }
