@@ -2,17 +2,21 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"github.com/gocolly/colly/v2"
+	"strconv"
+	"wjt_go/wx"
 )
 
-func main(){
+func main() {
 	fmt.Println("hello golang!")
 	spider()
 	fmt.Println(strconv.Quote("abcd"))
 }
 
-func spider(){
+func wx() {
+
+}
+func spider() {
 	c := colly.NewCollector()
 
 	// Find and visit all links
@@ -26,5 +30,3 @@ func spider(){
 
 	c.Visit("http://go-colly.org/")
 }
-
-
