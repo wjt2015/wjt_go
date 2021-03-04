@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"github.com/gocolly/colly/v2"
 	"strconv"
-	"wjt_go/wx"
+	"./wjt_go/wechat"
 )
 
 func main() {
 	fmt.Println("hello golang!")
 	//spider()
-	wx.WxFunc()
+	wechat.WxFunc()
 	fmt.Println(strconv.Quote("abcd"))
 }
 
