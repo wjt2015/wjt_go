@@ -20,7 +20,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ac46a3d4-028f-437f-8a9b-24f6d84a29ed" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
     </list>
@@ -40,11 +40,12 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="-23" />
-    <option name="y" value="-29" />
-    <option name="width" value="1944" />
-    <option name="height" value="1104" />
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="mavenHome" value="$PROJECT_DIR$/../../install_dir/maven360" />
+      </MavenGeneralSettings>
+    </option>
   </component>
   <component name="ProjectId" id="1p7TepDgIfMvErU4opTM2in2Vn3" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
@@ -53,7 +54,10 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="DefaultGoTemplateProperty" value="Go File" />
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="aspect.path.notification.shown" value="true" />
     <property name="configurable.Global.GOPATH.is.expanded" value="true" />
@@ -66,7 +70,8 @@
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
-    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
+    <property name="nodejs_package_manager_path" value="npm" />
+    <property name="settings.editor.selected.configurable" value="configurable.group.tools" />
   </component>
   <component name="RunManager">
     <configuration default="true" type="Application" factoryName="Application">
@@ -108,11 +113,14 @@
       <workItem from="1614487315728" duration="796000" />
       <workItem from="1614488152547" duration="3221000" />
       <workItem from="1614533232510" duration="5481000" />
+      <workItem from="1614658617460" duration="2067000" />
+      <workItem from="1614740159647" duration="658000" />
+      <workItem from="1614865253068" duration="523000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
-    <option name="version" value="3" />
+    <option name="version" value="2" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">
@@ -124,6 +132,7 @@
         </entry>
       </map>
     </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>
@@ -133,5 +142,9 @@
       <screen x="0" y="23" width="1440" height="821" />
     </state>
     <state x="448" y="348" key="#GOROOT/0.23.1440.821/1440.23.1920.1057@0.23.1440.821" timestamp="1614658142225" />
+    <state x="209" y="50" key="SettingsEditor" timestamp="1614658575482">
+      <screen x="0" y="23" width="1440" height="821" />
+    </state>
+    <state x="209" y="50" key="SettingsEditor/0.23.1440.821/1440.23.1920.1057@0.23.1440.821" timestamp="1614658575482" />
   </component>
 </project>
