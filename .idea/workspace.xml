@@ -20,9 +20,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ac46a3d4-028f-437f-8a9b-24f6d84a29ed" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/ssh/cmd1/simple.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ssh/pty.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ssh/cmd1/simple.go" beforeDir="false" afterPath="$PROJECT_DIR$/ssh/cmd1/simple.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -80,6 +79,15 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="go build wjt_go/ssh/cmd1" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
+      <module name="wjt_go" />
+      <working_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <filePath value="$PROJECT_DIR$/ssh/cmd1/simple.go" />
+      <package value="wjt_go/ssh/cmd1" />
+      <directory value="$PROJECT_DIR$/" />
+      <method v="2" />
+    </configuration>
     <configuration default="true" type="JUnit" factoryName="JUnit">
       <option name="TEST_OBJECT" value="class" />
       <option name="WORKING_DIRECTORY" value="%MODULE_WORKING_DIR%" />
@@ -96,6 +104,11 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Go Build.go build wjt_go/ssh/cmd1" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="SpellCheckerSettings" BundledDictionaries="0" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" Dictionaries="0" CorrectionsLimit="5" DefaultDictionary="application-level" UseSingleDictionary="true" />
   <component name="SvnConfiguration">
@@ -135,7 +148,7 @@
       <workItem from="1616121960245" duration="597000" />
       <workItem from="1616136162067" duration="56000" />
       <workItem from="1616155273892" duration="597000" />
-      <workItem from="1616160653533" duration="1420000" />
+      <workItem from="1616160653533" duration="6993000" />
     </task>
     <servers />
   </component>
@@ -166,9 +179,107 @@
       <screen x="0" y="23" width="1440" height="810" />
     </state>
     <state x="184" y="90" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616236334029" />
+    <state width="1398" height="258" key="GridCell.Tab.0.bottom" timestamp="1616245288668">
+      <screen x="0" y="23" width="1440" height="810" />
+    </state>
+    <state width="1398" height="258" key="GridCell.Tab.0.bottom/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616245288668" />
+    <state width="1398" height="258" key="GridCell.Tab.0.center" timestamp="1616245288667">
+      <screen x="0" y="23" width="1440" height="810" />
+    </state>
+    <state width="1398" height="258" key="GridCell.Tab.0.center/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616245288667" />
+    <state width="1398" height="258" key="GridCell.Tab.0.left" timestamp="1616245288667">
+      <screen x="0" y="23" width="1440" height="810" />
+    </state>
+    <state width="1398" height="258" key="GridCell.Tab.0.left/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616245288667" />
+    <state width="1398" height="258" key="GridCell.Tab.0.right" timestamp="1616245288668">
+      <screen x="0" y="23" width="1440" height="810" />
+    </state>
+    <state width="1398" height="258" key="GridCell.Tab.0.right/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616245288668" />
+    <state width="1398" height="258" key="GridCell.Tab.1.bottom" timestamp="1616245294991">
+      <screen x="0" y="23" width="1440" height="810" />
+    </state>
+    <state width="1398" height="258" key="GridCell.Tab.1.bottom/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616245294991" />
+    <state width="1398" height="258" key="GridCell.Tab.1.center" timestamp="1616245294990">
+      <screen x="0" y="23" width="1440" height="810" />
+    </state>
+    <state width="1398" height="258" key="GridCell.Tab.1.center/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616245294990" />
+    <state width="1398" height="258" key="GridCell.Tab.1.left" timestamp="1616245294990">
+      <screen x="0" y="23" width="1440" height="810" />
+    </state>
+    <state width="1398" height="258" key="GridCell.Tab.1.left/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616245294990" />
+    <state width="1398" height="258" key="GridCell.Tab.1.right" timestamp="1616245294991">
+      <screen x="0" y="23" width="1440" height="810" />
+    </state>
+    <state width="1398" height="258" key="GridCell.Tab.1.right/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616245294991" />
     <state x="209" y="50" key="SettingsEditor" timestamp="1614658575482">
       <screen x="0" y="23" width="1440" height="821" />
     </state>
     <state x="209" y="50" key="SettingsEditor/0.23.1440.821/1440.23.1920.1057@0.23.1440.821" timestamp="1614658575482" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/ssh/cmd1/simple.go</url>
+          <line>27</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>329</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>333</line>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>235</line>
+          <option name="timeStamp" value="4" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>261</line>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>279</line>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>255</line>
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>260</line>
+          <option name="timeStamp" value="8" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>274</line>
+          <option name="timeStamp" value="9" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>284</line>
+          <option name="timeStamp" value="11" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>292</line>
+          <option name="timeStamp" value="12" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
+          <line>300</line>
+          <option name="timeStamp" value="13" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>
