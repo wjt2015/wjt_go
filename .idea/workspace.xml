@@ -20,8 +20,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ac46a3d4-028f-437f-8a9b-24f6d84a29ed" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/ssh/pty.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ssh/cmd1/simple.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ssh/pty.go" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -121,7 +122,20 @@
       <workItem from="1615191265801" duration="2425000" />
       <workItem from="1615257135919" duration="599000" />
       <workItem from="1615264260675" duration="481000" />
-      <workItem from="1615343168162" duration="598000" />
+      <workItem from="1615343168162" duration="1192000" />
+      <workItem from="1615429295706" duration="598000" />
+      <workItem from="1615516171695" duration="577000" />
+      <workItem from="1615775547481" duration="599000" />
+      <workItem from="1615790158554" duration="586000" />
+      <workItem from="1615861803198" duration="599000" />
+      <workItem from="1615948850666" duration="597000" />
+      <workItem from="1615951755055" duration="598000" />
+      <workItem from="1616036404842" duration="597000" />
+      <workItem from="1616120831249" duration="408000" />
+      <workItem from="1616121960245" duration="597000" />
+      <workItem from="1616136162067" duration="56000" />
+      <workItem from="1616155273892" duration="597000" />
+      <workItem from="1616160653533" duration="1420000" />
     </task>
     <servers />
   </component>
@@ -148,6 +162,10 @@
       <screen x="0" y="23" width="1440" height="821" />
     </state>
     <state x="448" y="348" key="#GOROOT/0.23.1440.821/1440.23.1920.1057@0.23.1440.821" timestamp="1614658142225" />
+    <state x="184" y="90" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1616236334029">
+      <screen x="0" y="23" width="1440" height="810" />
+    </state>
+    <state x="184" y="90" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.23.1440.810/1440.23.1920.1057@0.23.1440.810" timestamp="1616236334029" />
     <state x="209" y="50" key="SettingsEditor" timestamp="1614658575482">
       <screen x="0" y="23" width="1440" height="821" />
     </state>
