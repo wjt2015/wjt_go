@@ -1,5 +1,9 @@
 vendor
 logs
 *.exe
+<<<<<<< HEAD
 .idea
+=======
+bin
+>>>>>>> 36615f7ff32cb7b7fadaf088a3ebd86428e7c468
 
