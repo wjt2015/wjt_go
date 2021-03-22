@@ -1,5 +1,6 @@
 vendor
 logs
 *.exe
+.idea
 bin
 
