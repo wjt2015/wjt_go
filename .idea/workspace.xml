@@ -19,10 +19,7 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ac46a3d4-028f-437f-8a9b-24f6d84a29ed" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ssh/cmd1/simple.go" beforeDir="false" afterPath="$PROJECT_DIR$/ssh/cmd1/simple.go" afterDir="false" />
-    </list>
+    <list default="true" id="ac46a3d4-028f-437f-8a9b-24f6d84a29ed" name="Default" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -149,7 +146,7 @@
       <workItem from="1616136162067" duration="56000" />
       <workItem from="1616155273892" duration="597000" />
       <workItem from="1616160653533" duration="7421000" />
-      <workItem from="1616379691725" duration="1627000" />
+      <workItem from="1616379691725" duration="2109000" />
     </task>
     <servers />
   </component>
