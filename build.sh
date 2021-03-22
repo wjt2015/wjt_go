@@ -7,7 +7,9 @@ else
 fi 
 mkdir bin logs
 
-go build  -o bin/wjt_go .
+go build -o bin/wjt_go .
+go build -o bin/simple ssh/cmd1/simple.go
+ 
 
 
 
