@@ -24,9 +24,7 @@ func ListenAndServe(addr string, handler ssh.Handler, options ...ssh.Option) err
 
 func main(){
 	ssh.Handle(func(s ssh.Session){
-
 		log.Printf("session=%+v\n",s)
-
 		if w,ok:=s.(io.Writer);ok{
 			log.Printf("w=%+v;ok=%+v;",w,ok)
 			io.WriteString(w,fmt.Sprintf("Hello %s\n",s.User()))

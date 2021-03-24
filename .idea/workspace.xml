@@ -19,7 +19,13 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ac46a3d4-028f-437f-8a9b-24f6d84a29ed" name="Default" comment="" />
+    <list default="true" id="ac46a3d4-028f-437f-8a9b-24f6d84a29ed" name="Default" comment="">
+      <change afterPath="$PROJECT_DIR$/pcap/cmd/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ssh/cmd1/simple.go" beforeDir="false" afterPath="$PROJECT_DIR$/ssh/cmd1/simple.go" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -32,7 +38,7 @@
       </list>
     </option>
   </component>
-  <component name="GOROOT" path="$PROJECT_DIR$/../../install_dir/go_sdk_1_15_3" />
+  <component name="GOROOT" path="D:\install_dir\go1.15.3.windows-amd64" />
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
@@ -61,6 +67,7 @@
     <property name="configurable.Project.GOPATH.is.expanded" value="true" />
     <property name="go.gopath.indexing.explicitly.defined" value="true" />
     <property name="go.import.settings.migrated" value="true" />
+    <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
     <property name="go.vendoring.notification.had.been.shown" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
@@ -147,6 +154,10 @@
       <workItem from="1616155273892" duration="597000" />
       <workItem from="1616160653533" duration="7421000" />
       <workItem from="1616379691725" duration="2109000" />
+      <workItem from="1616431537720" duration="2262000" />
+      <workItem from="1616510648565" duration="1857000" />
+      <workItem from="1616682586053" duration="1238000" />
+      <workItem from="1616776250940" duration="2261000" />
     </task>
     <servers />
   </component>
@@ -219,17 +230,17 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/ssh/cmd1/simple.go</url>
-          <line>27</line>
+          <line>26</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
-          <line>329</line>
+          <line>326</line>
           <option name="timeStamp" value="2" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
-          <line>333</line>
+          <line>330</line>
           <option name="timeStamp" value="3" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
@@ -264,17 +275,17 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
-          <line>284</line>
+          <line>281</line>
           <option name="timeStamp" value="11" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
-          <line>292</line>
+          <line>289</line>
           <option name="timeStamp" value="12" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/vendor/github.com/gliderlabs/ssh/server.go</url>
-          <line>300</line>
+          <line>297</line>
           <option name="timeStamp" value="13" />
         </line-breakpoint>
       </breakpoints>
