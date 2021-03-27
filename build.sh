@@ -1,5 +1,5 @@
 #!/bin/sh
-rm -rf vendor bin logs
+##rm -rf vendor bin logs
 
 if(($# >= 1));then
    git add -A;git commit -m $1;git push
