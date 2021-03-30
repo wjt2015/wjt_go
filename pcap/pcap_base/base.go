@@ -13,7 +13,8 @@ func PcapFunc() {
 	ifs, err := pcap.FindAllDevs()
 	log.Printf("ifs=%+v;err=%+v\n", ifs, err)
 
-	handle, err := pcap.OpenLive("en0", 1<<20, false, -1)
+	//handle, err := pcap.OpenLive("en0", 1<<20, false, -1)
+	handle, err := pcap.OpenLive("nflog", 1<<20, false, -1)
 	log.Printf("pcap_err=%+v\n", err)
 	if err != nil {
 		log.Panicf("OpenLive error!err=%+v\n", err)
@@ -21,6 +22,8 @@ func PcapFunc() {
 	}
 	//log.Printf("handle=%+v;err=%+v;\n",handle,err)
 	defer handle.Close()
+
+	handle.SetBPFFilter("tcp and port 80")
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
@@ -41,9 +44,6 @@ func PcapFunc() {
 			layerType:=layer.LayerType()
 			layerTypeStr:=layerType.String()
 			log.Printf("i=%+v;j=%+v;layer=%+v;layerType=%+v;layerTypeStr=%+v;\n",i,j,layer,layerType,layerTypeStr)
-
-
-
 		}
 		i++
 	}
