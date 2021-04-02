@@ -1,0 +1,9 @@
+.vscode
+.directory
+coverage.out
+package-lock.json
+go.sum
+node_modules
+issue-*/
+/_examples/feature-*/
+_examples/**/uploads/*
