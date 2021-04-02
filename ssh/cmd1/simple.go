@@ -31,6 +31,8 @@ func main(){
 		}
 	})
 
+	//ssh.HostKeyFile()
+
 	log.Println("simple ssh server on port 2222")
 	//log.Fatal(ssh.ListenAndServe(":2222",nil))
 	log.Fatal(ListenAndServe(":2222",nil))
