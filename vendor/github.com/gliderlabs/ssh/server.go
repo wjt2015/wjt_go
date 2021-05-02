@@ -281,7 +281,7 @@ func (srv *Server) HandleConn(newConn net.Conn) {
 	}
 	defer conn.Close()
 	sshConn, chans, reqs, err := gossh.NewServerConn(conn, srv.config(ctx))
-
+	
 	log.Printf("sshConn=%+v;chans=%+v;reqs=%+v;err=%+v\n",sshConn,chans,reqs,err)
 	if err != nil {
 		// TODO: trigger event callback

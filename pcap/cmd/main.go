@@ -1,34 +1,35 @@
 package main
-/**
-[
-https://studygolang.com/articles/14926
-https://studygolang.com/articles/11284
-https://blog.csdn.net/u014762921/article/details/78275428
-https://my.oschina.net/zijingshanke/blog/1031479
-https://www.devdungeon.com/content/packet-capture-injection-and-analysis-gopacket#more-on-packets
-自定义协议/解决tcp粘包问题(golang版本)
-https://studygolang.com/articles/16337
-https://my.oschina.net/zijingshanke/blog/1031479
-https://blog.csdn.net/u014762921/article/details/78275428
 
-golang实现p2p之UDP打洞
-https://blog.csdn.net/qq_31967569/article/details/82704340
+import "github.com/sirupsen/logrus"
 
----
-libpcap:
-https://github.com/the-tcpdump-group
-https://github.com/the-tcpdump-group/libpcap
-https://www.jianshu.com/p/ed6db49a3428
-https://blog.csdn.net/ptmozhu/article/details/78743126
+func swap(arr [2]float64){
+	logrus.Infof("inner!arr_addr=%p;arr=%+v\n",&arr,arr)
+	arr[0]=10;
+	arr[1]=15;
+}
 
-
-https://github.com/mozhuli/SDN-Learning-notes/blob/master/SUMMARY.md
----
-]
- */
-import "wjt_go/pcap/pcap_base"
+func incr(arr [] float64){
+	logrus.Infof("incr();arr_addr=%p;arr=%+v;\n",&arr,arr)
+	for i:=0;i<len(arr);i++ {
+		arr[i]+=20;
+	}
+}
 
 func main() {
-	pcap_base.PcapFunc()
+	//pcap_base.PcapFunc()
 
+	arr:=[2]float64{1,2}
+
+	//arr:=make([]float64,4,6)
+
+	logrus.Infof("before;arr=%+v;arr_addr=%p\n",arr,&arr)
+
+	swap(arr)
+
+	//incr(arr)
+
+	logrus.Infof("after;arr=%+v\n",arr)
 }
+
+
+

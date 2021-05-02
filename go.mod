@@ -11,4 +11,5 @@ require (
 	github.com/mlogclub/simple v1.1.6
 	github.com/sirupsen/logrus v1.8.0
 	github.com/songtianyi/wechat-go v0.0.0-20201201042057-1b63788f9704
+	github.com/syndtr/goleveldb v1.0.0
 )
