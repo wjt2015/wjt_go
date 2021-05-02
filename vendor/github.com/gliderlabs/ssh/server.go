@@ -7,7 +7,6 @@ import (
 	"net"
 	"sync"
 	"time"
-	"log"
 
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -234,9 +233,6 @@ func (srv *Server) Serve(l net.Listener) error {
 	defer srv.trackListener(l, false)
 	for {
 		conn, e := l.Accept()
-
-		log.Printf("conn=%+v;e=%+v;\n",conn,e)
-
 		if e != nil {
 			select {
 			case <-srv.getDoneChan():
@@ -281,8 +277,6 @@ func (srv *Server) HandleConn(newConn net.Conn) {
 	}
 	defer conn.Close()
 	sshConn, chans, reqs, err := gossh.NewServerConn(conn, srv.config(ctx))
-	
-	log.Printf("sshConn=%+v;chans=%+v;reqs=%+v;err=%+v\n",sshConn,chans,reqs,err)
 	if err != nil {
 		// TODO: trigger event callback
 		return
@@ -334,7 +328,6 @@ func (srv *Server) ListenAndServe() error {
 		addr = ":22"
 	}
 	ln, err := net.Listen("tcp", addr)
-	log.Printf("ln=%+v;err=%+v;\n",ln,err)
 	if err != nil {
 		return err
 	}
