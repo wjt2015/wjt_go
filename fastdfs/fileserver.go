@@ -117,6 +117,24 @@ type StatDateFileInfo struct{
 type GlobalConfig struct{
 	Addr string `json:"addr"`
 	Peers []string `json:"peers"`
+	EnableHttps bool `json:"enable_https"`
+	Group string `json:"group"`
+	RenameFile bool `json:"rename_file"`
+	ShowDir bool `json:"show_dir"`
+	Extensions []string `json:"extensions"`
+	RefreshInterval int `json:"refresh_interval"`
+	EnableWebUpload bool `json:"enable_web_upload"`
+	DownloadDomain string `json:"download_domain"`
+	EnableCustomPath bool `json:"enable_custom_path"`
+	Scenes []string `json:"scenes"`
+	AlarmReceivers  []string `alarm_receivers`
+	DefaultScene string `json:default_scene`
+	Mail Mail `json:"mail"`
+	AlarmUrl string `json:"alarm_url"`
+	DownloadUseToken bool `json:"download_use_token"`
+
+
+
 
 }
 
