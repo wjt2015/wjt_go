@@ -116,7 +116,7 @@ type StatDateFileInfo struct{
 
 type GlobalConfig struct{
 	Addr string `json:"addr"`
-	Peers []strring `json:"peers"`
+	Peers []string `json:"peers"`
 
 }
 
