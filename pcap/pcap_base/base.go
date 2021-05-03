@@ -23,7 +23,7 @@ func PcapFunc() {
 	//log.Printf("handle=%+v;err=%+v;\n",handle,err)
 	defer handle.Close()
 
-	handle.SetBPFFilter("tcp and port 80")
+	//handle.SetBPFFilter("tcp and port 80")
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
