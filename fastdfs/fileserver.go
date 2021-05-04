@@ -485,7 +485,6 @@ func (s *Server) BackUpMetaDataByDate(date string){
 		logrus.Errorf("openFile(%s) error(%+v)\n",logFileName,err)
 		return
 	}
-
 	defer fileLog.Close()
 
 	if fileMeta,err=os.OpenFile(metaFileName,os.O_RDWR|os.O_CREATE|os.O_APPEND,0664);err!=nil{
@@ -494,13 +493,102 @@ func (s *Server) BackUpMetaDataByDate(date string){
 	}
 	defer fileMeta.Close()
 
-	
+	keyPrefix=fmt.Sprintf("%s_%s",date,CONST_FILE_Md5_FILE_NAME)
+	it:=server.logDB.NewIterator(util.BytesPrefix([]byte(keyPrefix)),nil)
+	defer it.Release()
 
+	for it.Next(){
+		if err=json.Unmarshal(it.Value(),&fileInfo);err!=nil{
+			logrus.Errorf("unmarshal error!it=%+v\n",it)
+			continue
+		}
+		if fileInfo.ReName!=""{
+			name=fileInfo.ReName
+		}else {
+			name=fileInfo.Name
+		}
+		msg=fmt.Sprintf("%s\t%s\n",fileInfo.Md5,string(it.Value()))
+		if _,err=fileMeta.WriteString(msg);err!=nil{
+			logrus.Errorf("fileMeta(%+v) write error!msg=%s;err=%+v\n",fileMeta,msg,err)
+		}
 
+		msg=fmt.Sprintf("%s\t%s\n",s.util.MD5(fileInfo.Path+"/"+name),string(it.Value()))
+		if _,err=fileMeta.WriteString(msg);err!=nil{
+			logrus.Errorf("fileMeta(%+v) write error!msg=%s;err=%+v\n",fileMeta,msg,err)
+		}
 
+		msg=fmt.Sprintf("%s|%d|%d|%s\n",fileInfo.Md5,fileInfo.Size,fileInfo.TimeStamp,fileInfo.Path+"/"+name)
+		if _,err=fileMeta.WriteString(msg);err!=nil{
+			logrus.Errorf("fileMeta(%+v) write error!msg=%s;err=%+v\n",fileMeta,msg,err)
+		}
+	}
+
+	if fi,err=fileLog.Stat();err!=nil{
+		logrus.Errorf("fileLog stat error!err=%+v\n",err)
+	}else if fi.Size()==0{
+		fileLog.Close()
+		os.Remove(logFileName)
+	}
+
+	if fi,err=fileMeta.Stat();err!=nil{
+		logrus.Errorf("fileMeta stat error!err=%+v\n",err)
+	}else if fi.Size()==0{
+		fileMeta.Close()
+		os.Remove(metaFileName)
+	}
+}
+
+func handleFunc(filePath string,f os.FileInfo,err error) error{
+	var (
+		files []os.FileInfo
+		fi os.FileInfo
+		fileInfo FileInfo
+		sum string
+		pathMd5 string
+	)
+	if f.IsDir(){
+		if files,err=ioutil.ReadDir(filePath);err!=nil{
+			logrus.Errorf("read_dir error!filePath=%s;err=%+v\n",filePath,err)
+			return err
+		}
+		for _,fi=range files{
+			if fi.Size()==0||fi.IsDir(){
+				continue
+			}
+			filePath=strings.Replace(filePath,"\\","/",-1)
+
+		}
+
+	}
+
+}
+
+func (s *Server) RepairFileInfoFromFile(){
+	var (
+		pathPrefix string
+		err error
+		fi os.FileInfo
+	)
+	defer func(){
+		if re:=recover();re!=nil{
+			buffer:=debug.Stack()
+			logrus.Errorf("RepairFileInfoFromFile error!re=%+v;buffer=%s\n",re,string(buffer))
+		}
+	}()
+
+	if s.lockMap.IsLock("RepairFileInfoFromFile"){
+		logrus.Warnf("Lock RepairFileInfoFromFile")
+		return
+	}
+
+	s.lockMap.LockKey("RepairFileInfoFromFile")
+	defer s.lockMap.UnLockKey("RepairFileInfoFromFile")
+	//handlefunc
 
 
 }
+
+
 
 
 
