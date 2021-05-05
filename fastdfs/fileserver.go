@@ -4,55 +4,27 @@ package fastdfs
 https://gitee.com/linux2014/go-fastdfs_2
  */
 
-
 import (
-	"bufio"
-	"bytes"
-	"errors"
 	"flag"
 	"fmt"
+	"github.com/radovskyb/watcher"
 	"github.com/sirupsen/logrus"
-	"image"
-	"image/jpeg"
-	"image/png"
-	"io"
 	"io/ioutil"
-	slog "log"
-	random "math/rand"
-	"mime/multipart"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"net/smtp"
-	"net/url"
 	"os"
-	"os/signal"
-	"path"
 	"path/filepath"
-	"regexp"
-	"runtime"
 	"runtime/debug"
-	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 	"unsafe"
 
 	"github.com/astaxie/beego/httplib"
-	mapset "github.com/deckarep/golang-set"
 	_ "github.com/eventials/go-tus"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/nfnt/resize"
-	"github.com/radovskyb/watcher"
-	"github.com/shirou/gopsutil/disk"
-	"github.com/shirou/gopsutil/mem"
-	"github.com/sjqzhang/googleAuthenticator"
 	"github.com/sjqzhang/goutil"
 	log "github.com/sjqzhang/seelog"
-	"github.com/sjqzhang/tusd"
-	"github.com/sjqzhang/tusd/filestore"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -538,6 +510,9 @@ func (s *Server) BackUpMetaDataByDate(date string){
 	}
 }
 
+var globalServer *Server
+var pathPrefix string
+
 func handleFunc(filePath string,f os.FileInfo,err error) error{
 	var (
 		files []os.FileInfo
@@ -556,19 +531,51 @@ func handleFunc(filePath string,f os.FileInfo,err error) error{
 				continue
 			}
 			filePath=strings.Replace(filePath,"\\","/",-1)
+			if DOCKER_DIR!=""{
+				filePath=strings.Replace(filePath,DOCKER_DIR,"",1)
+			}
+			if pathPrefix!=""{
+				filePath=strings.Replace(filePath,pathPrefix,STORE_DIR_NAME,1)
+			}
+			if strings.HasPrefix(filePath,STORE_DIR_NAME+"/"+LARGE_DIR_NAME){
+				logrus.Infof(fmt.Sprintf("ignore small file file %s!",filePath+"/"+fi.Name()))
+				continue
+			}
+			pathMd5=globalServer.util.MD5(filePath+"/"+fi.Name())
+			sum=pathMd5
 
+			if err!=nil{
+				logrus.Errorf("err=%+v\n",err)
+				continue
+			}
+			fileInfo=FileInfo{
+				Size:fi.Size(),
+				Name:fi.Name(),
+				Path:filePath,
+				Md5:sum,
+				TimeStamp: fi.ModTime().Unix(),
+				Peers: []string{globalServer.host},
+				OffSet: -2,
+			}
+			logrus.Infof("fileInfo=%+v\n",fileInfo)
+			//todo
+			//s.AppendToQueue(&fileInfo)
+			//s.postFileToPeer(&fileInfo)
+			//s.SaveFileInfoToLevelDB(fileInfo.Md5,&fileInfo,s.ldb)
+			//s.SaveFileMd5Log(&fileInfo,CONST_FILE_Md5_FILE_NAME)
 		}
-
 	}
-
+	return nil
 }
 
 func (s *Server) RepairFileInfoFromFile(){
 	var (
-		pathPrefix string
+		//pathPrefix string
 		err error
 		fi os.FileInfo
 	)
+	globalServer=s
+
 	defer func(){
 		if re:=recover();re!=nil{
 			buffer:=debug.Stack()
@@ -584,9 +591,168 @@ func (s *Server) RepairFileInfoFromFile(){
 	s.lockMap.LockKey("RepairFileInfoFromFile")
 	defer s.lockMap.UnLockKey("RepairFileInfoFromFile")
 	//handlefunc
+	pathname:=STORE_DIR
+	if pathPrefix,err=os.Readlink(pathname);err==nil{
+		pathname=pathPrefix
 
-
+		if strings.HasSuffix(pathPrefix,"/"){
+			pathPrefix=pathPrefix[0:len(pathPrefix)-1]
+		}
+	}
+	if fi,err=os.Stat(pathname);err!=nil{
+		logrus.Errorf("stat error!pathname=%s;err=%+v;\n",pathname,err)
+	}
+	if fi.IsDir(){
+		filepath.Walk(pathname,handleFunc)
+	}
+	logrus.Infof("RepairFileInfoFromFile finish!")
 }
+
+func (s *Server) WatchFilesChange(){
+	var (
+		w *watcher.Watcher
+		curDir string
+		err error
+		qchan chan *FileInfo
+		isLink bool
+	)
+	qchan=make(chan *FileInfo,Config().WatchChanSize)
+	w=watcher.New()
+	w.FilterOps(watcher.Create)
+
+	if curDir,err=filepath.Abs(filepath.Dir(STORE_DIR_NAME));err!=nil{
+		logrus.Errorf("file error!err=%+v\n",err)
+	}
+	go func(){
+		//事件监控协程;
+		for{
+			select{
+			case event :=<-w.Event:
+				logrus.Infof("event=%+v\n",event)
+				if event.IsDir(){
+					continue
+				}
+				fpath:=strings.Replace(event.Path,curDir+string(os.PathSeparator),"",1)
+
+				if isLink{
+					fpath=strings.Replace(event.Path,curDir,STORE_DIR_NAME,1)
+				}
+				fpath=strings.Replace(fpath,string(os.PathSeparator),"/",-1)
+				sum:=s.util.MD5(fpath)
+				fileInfo:=FileInfo{
+					Size:event.Size(),
+					Name:event.Name(),
+					Path:strings.TrimSuffix(fpath,"/"+event.Name()),
+					Md5:sum,
+					TimeStamp: event.ModTime().Unix(),
+					Peers: []string{s.host},
+					OffSet: -2,
+					op:event.Op.String(),
+				}
+				logrus.Infof(fmt.Sprintf("WatchFilesChange op:%s path:%s",event.Op.String(),fpath))
+				//一旦有事件发生,则将fileInfo加入qchan;
+				qchan <- &fileInfo
+				break
+			case err =<- w.Error:
+				logrus.Errorf("err=%+v\n",err)
+				break
+			case v:=<-w.Closed:
+				logrus.Infof("close!v=%+v\n",v)
+				return
+			}//select;
+		}//for
+	}()//go func();
+
+	go func(){
+		//处理qchan内的事件;
+		for{
+			c:=<-qchan
+			if time.Now().Unix()-c.TimeStamp<Config().SyncDelay{
+				qchan <- c
+				time.Sleep(time.Second)
+				continue
+			}else {
+				if c.op==watcher.Create.String(){
+					logrus.Infof(fmt.Sprintf("Syncfile Add to queue path:%s\n",c.Path+"/"+c.Name))
+					//todo
+					//s.AppendToQueue(c)
+					//s.SaveFileInfoToLevelDB(c.Md5,c,s.ldb)
+				}
+			}
+		}//for
+	}()//go func()
+
+	if dir,err:=os.Readlink(STORE_DIR_NAME);err==nil{
+		if strings.HasSuffix(dir,string(os.PathSeparator)){
+			dir=strings.TrimSuffix(dir,string(os.PathSeparator))
+		}
+		curDir=dir
+		isLink=true
+		if err:=w.AddRecursive(dir);err!=nil{
+			logrus.Errorf("AddRecursive err=%+v\n",v)
+		}
+		w.Ignore(dir+"/_tmp/")
+		w.Ignore(dir+"/"+LARGE_DIR_NAME+"/")
+	}
+	if err:=w.AddRecursive("./"+STORE_DIR_NAME);err!=nil{
+		logrus.Errorf("AddRecursive err=%+v\n",v)
+	}
+	w.Ignore("./"+STORE_DIR_NAME+"/_tmp/")
+	w.Ignore("./"+STORE_DIR_NAME+"/"+LARGE_DIR_NAME+"/")
+	if err:=w.Start(time.Millisecond*100);err!=nil{
+		logrus.Errorf("watcher start error!err=%+v\n",err)
+	}
+}
+
+func (s *Server) RepairStatByDate(date string) StatDateFileInfo{
+	defer func(){
+		if re:=recover();re!=nil{
+			buffer:=debug.Stack()
+			logrus.Errorf("RepairStatByDate;re=%+v;buffer=%+v\n",re,string(buffer))
+		}
+	}()
+	var (
+		err error
+		keyPrefix string
+		fileInfo FileInfo
+		fileCount int64
+		fileSize int64
+		stat StatDateFileInfo
+	)
+	keyPrefix=fmt.Sprintf("%s_%s_",date,CONST_FILE_Md5_FILE_NAME)
+	it:=s.logDB.NewIterator(util.BytesPrefix([]byte(keyPrefix)),nil)
+	defer it.Release()
+	for it.Next(){
+		if err=json.Unmarshal(it.Value(),&fileInfo);err!=nil{
+			continue
+		}
+		fileCount++
+		fileSize+=fileInfo.Size
+	}
+	s.statMap.Put(date+"_"+CONST_STAT_FILE_COUNT_KEY,fileCount)
+	s.statMap.Put(date+"_"+CONST_STAT_FILE_TOTAL_SIZE_KEY,fileSize)
+	//todo
+	//s.SaveStat()
+	stat.Date=date
+	stat.FileCount=fileCount
+	stat.TotalSize=fileSize
+	return stat
+}
+
+func (s *Server) GetFilePathByInfo(fileInfo *FileInfo,withDocker bool) string{
+	fn:=fileInfo.Name
+	if fileInfo.ReName!=""{
+		fn=fileInfo.ReName
+	}
+	if withDocker{
+		return DOCKER_DIR+fileInfo.Path+"/"+fn
+	}
+	return fileInfo.Path+"/"+fn
+}
+
+
+
+
 
 
 
