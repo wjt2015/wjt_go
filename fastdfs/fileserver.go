@@ -5,6 +5,7 @@ https://gitee.com/linux2014/go-fastdfs_2
  */
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/radovskyb/watcher"
@@ -748,6 +749,56 @@ func (s *Server) GetFilePathByInfo(fileInfo *FileInfo,withDocker bool) string{
 		return DOCKER_DIR+fileInfo.Path+"/"+fn
 	}
 	return fileInfo.Path+"/"+fn
+}
+
+func (s *Server) CheckFileExistByInfo(md5s string,fileInfo *FileInfo) bool{
+	var (
+		err error
+		fullPath string
+		fi os.FileInfo
+		info *FileInfo
+	)
+	if fileInfo==nil{
+		return false
+	}
+
+	if fileInfo.OffSet>=0{
+		//small file;
+		/**
+		if info,err=s.GetFileInfoFromLevelDB(fileInfo.Md5);err==nil&&info.Md5==fileInfo.Md5{
+		   return true
+		}else{
+		   return false
+		}
+		 */
+	}
+
+	fullPath=s.GetFilePathByInfo(fileInfo,true)
+	if fi,err=os.Stat(fullPath);err!=nil{
+		return false
+	}
+	if fi.Size()==fileInfo.Size{
+		return true
+	}else {
+		return false
+	}
+}
+
+func (s *Server) ParseSmallFile(fileName string) (string,int64,int,error){
+	var (
+		err error
+		offset int64
+		length int
+	)
+	err=errors.New("invalid small file")
+	if len(fileName)<3{
+		return fileName,-1,-1,err
+	}
+	if strings.Contains(fileName,"/"){
+		fileName=fileName[strings.LastIndex(fileName,"/"):]
+	}
+	pos:=strings.Split(fileName,",")
+
 }
 
 
