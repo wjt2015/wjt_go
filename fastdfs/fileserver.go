@@ -995,8 +995,98 @@ func (s *Server) CheckAuth(w http.ResponseWriter,r *http.Request) bool{
 		logrus.Errorf("ParseForm error!errr=%+v\n",err)
 		return false
 	}
+	req=httplib.Post(Config().AuthUrl)
+	req.SetTimeout(time.Second*10,time.Second*10)
+	req.Param("__path__",r.URL.Path)
+	req.Param("__query__",r.URL.RawQuery)
+	for k,v:=range r.Form{
+		logrus.Infof("form;k=%s;v=%s\n",k,v)
+		req.Param(k,r.FormValue(k))
+	}
+	for k,v:=range r.Header{
+		logrus.Infof("header;k=%s;v=%s\n",k,v)
+		req.Header(k,v[0])
+	}
+	result,err=req.String()
+	result=strings.TrimSpace(result)
+	if strings.HasPrefix(result,"{")&&strings.HasSuffix(result,"}"){
+		if err=json.Unmarshal([]byte(result),&jsonResult);err!=nil{
+			logrus.Errorf("unmarshal error!err=%+v\n",err)
+			return false
+		}
+		if jsonResult.Data!="ok"{
+			logrus.Errorf("result not ok!")
+			return false
+		}
+	}else if result!="ok"{
+		logrus.Warnf("result not ok!")
+		return false
+	}
+	return true
+}
+
+func (s *Server) NotPermit(w http.ResponseWriter,rr *http.Request){
+	w.WriteHeader(401)
+}
+
+func (s *Server) GetFilePathFromRequest(w http.ResponseWriter,r *http.Request) (string,string){
+	var (
+		err error
+		fullPath string
+		smallPath string
+		prefix string
+	)
+	fullPath=r.RequestURI[1:]
+
+	if strings.HasPrefix(r.RequestURI,"/"+Config().Group+"/"){
+		fullPath=r.RequestURI[len(Config().Group)+2:len(r.RequestURI)]
+	}
+	fullPath=strings.Split(fullPath,"?")[0]//just path
+	fullPath=DOCKER_DIR+STORE_DIR_NAME+"/"+fullPath
+	prefix="/"+LARGE_DIR_NAME+"/"
+
+	if Config().SupportGroupManage{
+		prefix="/"+Config().Group+"/"+LARGE_DIR_NAME+"/"
+	}
+	if strings.HasPrefix(r.RequestURI,prefix){
+		smallPath=fullPath
+		fullPath=strings.Split(fullPath,",")[0]
+	}
+	if fullPath,err=url.PathUnescape(fullPath);err!=nil{
+		logrus.Errorf("pathUnescape error!err=%+v\n",err)
+	}
+	return fullPath,smallPath
+}
+
+func (s *Server) CheckDownloadAuth(w http.ResponseWriter,r *http.Request) (bool,error){
+	var(
+		err error
+		maxTimestamp int64
+		minTimestamp int64
+		ts int64
+		token string
+		timestamp string
+		fullPath string
+		smallPath string
+		pathMd5 string
+		fileInfo *FileInfo
+		scene string
+		secret interface{}
+		code string
+		ok bool
+	)
+	CheckToken:=func(token string,md5sum string ,timestamp string) bool{
+		if s.util.MD5(md5sum+timestamp)!=token{
+			return false
+		}else{
+			return true
+		}
+	}
+	
 
 }
+
+
 
 
 
