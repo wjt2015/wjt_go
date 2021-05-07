@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -893,16 +894,113 @@ func (s *Server) DownloadFromPeer(peer string,fileInfo *FileInfo){
 		req:=httplib.Get(downloadUrl)
 		req.SetTimeout(time.Second*30,time.Second*time.Duration(timeout))
 		if err=req.ToFile(fpathTmp);err!=nil{
-
+			//todo
+			//s.AppendToDowndQueue(fileInfo);//retry
+			os.Remove(fpathTmp)
+			logrus.Errorf("req.ToFile error!fpathTmp=%s;err=%+v;",fpathTmp,err)
+			return
 		}
 
+		if fi,err=os.Stat(fpathTmp);err!=nil{
+			os.Remove(fpathTmp)
+			return
+		}else if fi.Size()!=fileInfo.Size{
+			logrus.Errorf("file size check error!fi.Name=%s;fileInfo.Name=%s;",fi.Name(),fileInfo.Name)
+			os.Remove(fpathTmp)
+		}
+		if os.Rename(fpathTmp,fpath)==nil{
+			//todo
+			//s.SaveFileInfoToLevelDB(fileInfo.Md5,fileInfo,s.ldb)
+		}
+		return
+	}
+	req:=httplib.Get(downloadUrl)
+	req.SetTimeout(time.Second*30,time.Second*time.Duration(timeout))
+
+	if fileInfo.OffSet>=0{
+		//small file download
+		if data,err=req.Bytes();err!=nil{
+			//todo
+			//s.AppendToDownloadQueue(fileInfo)
+			logrus.Errorf("download error!err=%+v\n",err)
+			return
+		}
+		data2:=make([]byte,len(data)+1)
+		data2[0]='1'
+		for i,v:=range data{
+			data2[i+1]=v
+		}
+		data=data2
+
+		if int64(len(data))!=fileInfo.Size{
+			logrus.Errorf("file size error!")
+			return
+		}
+
+		fpath=strings.Split(fpath,",")[0]
+		if err=s.util.WriteFileByOffSet(fpath,fileInfo.OffSet,data);err!=nil{
+			logrus.Errorf("WriteFileByOffSet error!fpath=%s;err=%+v\n",fpath,err)
+			return
+		}
+		//todo
+		//s.SaveFileMd5Log(fileInfo,CONST_FILE_Md5_FILE_NAME)
+	}
+	if err=req.ToFile(fpathTmp);err!=nil{
+		//todo
+		//s.AppendToDownloadQueue(fileInfo);
+		os.Remove(fpathTmp)
+		logrus.Errorf("req.ToFile error!fpathTmp=%s;err=%+v;",fpathTmp,err)
+		return
+	}
+	if fi.Size()!=fileInfo.Size{
+		logrus.Errorf("file sum check error!")
+		os.Remove(fpathTmp)
+		return
 	}
 
+	if os.Rename(fpathTmp,fpath)==nil{
+		//todo
+		//s.SaveFileMd5Log(fileInfo,CONST_FILE_Md5_FILE_NAME);
+	}
+}
+
+func (s *Server) CrossOrigin(w http.ResponseWriter,r *http.Request){
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Depth, User-Agent, X-File-Size, X-Requested-With, X-Requested-By, If-Modified-Since, X-File-Name, X-File-Type, Cache-Control, Origin")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Expose-Headers", "Authorization")
+	//https://blog.csdn.net/yanzisu_congcong/article/details/80552155
+}
+
+func (s *Server) SetDownloadHeader(w http.ResponseWriter,r *http.Request){
+	w.Header().Set("Content-Type","application/octet-stream")
+	w.Header().Set("Content-Disposition","attachment")
+	if name,ok:=r.URL.Query()["name"];ok{
+		if v,err:=url.QueryUnescape(name[0]);err==nil{
+			name[0]=v
+		}
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s", name[0]))
+	}
+}
 
 
-
+func (s *Server) CheckAuth(w http.ResponseWriter,r *http.Request) bool{
+	var(
+		err error
+		req *httplib.BeegoHTTPRequest
+		result string
+		jsonResult JsonResult
+	)
+	if err=r.ParseForm();err!=nil{
+		logrus.Errorf("ParseForm error!errr=%+v\n",err)
+		return false
+	}
 
 }
+
+
+
+
 
 
 
