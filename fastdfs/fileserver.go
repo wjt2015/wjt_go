@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -798,6 +799,108 @@ func (s *Server) ParseSmallFile(fileName string) (string,int64,int,error){
 		fileName=fileName[strings.LastIndex(fileName,"/"):]
 	}
 	pos:=strings.Split(fileName,",")
+	if len(pos)<3{
+		return fileName,-1,-1,err
+	}
+	if offset,err=strconv.ParseInt(pos[1],10,64);err!=nil{
+		return fileName,-1,-1,err
+	}
+	if length,err=strconv.Atoi(pos[2]);err!=nil{
+		return fileName,offset,-1,err
+	}
+	if length>CONST_SMALL_FILE_SIZE||offset<0{
+		err=errors.New("invalid filesize pf offset")
+		return fileName,-1,-1,err
+	}
+	return pos[0],-1,-1,err
+}
+
+
+func (s *Server) DownloadFromPeer(peer string,fileInfo *FileInfo){
+	var(
+		err error
+		fileName string
+		fpath string
+		fpathTmp string
+		fi os.FileInfo
+		sum string
+		data []byte
+		downloadUrl string
+	)
+	if Config().ReadOnly{
+		logrus.Warnf("Readonly; fileInfo=%+v\n",fileInfo)
+		return
+	}
+	if Config().RetryCount>0&&fileInfo.retry>=Config().RetryCount{
+		logrus.Errorf("DownloadFromPeer error!fileInfo=%+v\n",fileInfo)
+		return
+	}else {
+		fileInfo.retry++;
+	}
+	fileName=fileInfo.Name
+	if fileInfo.ReName!=""{
+		fileName=fileInfo.ReName
+	}
+	if fileInfo.OffSet!=-2&&Config().EnableDistinctFile&&s.CheckFileExistByInfo(fileInfo.Md5,fileInfo){
+		//ignore migrate file
+		logrus.Infof("DownloadFromPeer file exist;path=%+v\n",fileInfo.Path+"/"+fileInfo.Name)
+		return
+	}
+	if (!Config().EnableDistinctFile||fileInfo.OffSet==-2)||s.util.FileExists(s.GetFilePathByInfo(fileInfo,true)){
+		if fi,err=os.Stat(s.GetFilePathByInfo(fileInfo,true));err!=nil{
+			logrus.Infof("ignore file sync path:%s\n",s.GetFilePathByInfo(fileInfo,false))
+			fileInfo.TimeStamp=fi.ModTime().Unix()
+			//to do
+			//s.PostFileToPeer(fileInfo);
+			return
+		}
+		os.Remove(s.GetFilePathByInfo(fileInfo,true))
+	}
+
+	if _,err=os.Stat(fileInfo.Path);err!=nil{
+		os.MkdirAll(DOCKER_DIR+fileInfo.Path,0775)
+	}
+
+	p:=strings.Replace(fileInfo.Path,STORE_DIR_NAME+"/","",1)
+
+	if Config().SupportGroupManage{
+		downloadUrl=peer+"/"+Config().Group+"/"+p+"/"+fileName
+	}else {
+		downloadUrl=peer+"/"+p+"/"+fileName
+	}
+	logrus.Infof("DownloadFromPeer url=%s\n",downloadUrl)
+	fpath=DOCKER_DIR+fileInfo.Path+"/"+fileName
+	fpathTmp=DOCKER_DIR+fileInfo.Path+"/tmp_"+fileName
+	timeout:=fileInfo.Size>>20+30
+	if Config().SyncTimeout>0{
+		timeout=Config().SyncTimeout
+	}
+	s.lockMap.LockKey(fpath)
+	defer s.lockMap.UnLockKey(fpath)
+	downloadKey:=fmt.Sprintf("downloading_%d_%s",time.Now().Unix(),fpath)
+	s.ldb.Put([]byte(downloadKey),[]byte(""),nil)
+	defer func(){
+		s.ldb.Delete([]byte(downloadKey),nil)
+	}()
+
+	if fileInfo.OffSet==-2{
+		//migrate
+		if fi,err=os.Stat(fpath);err==nil&&fi.Size()==fileInfo.Size{
+			//todo
+			//s.SaveFileInfoTo:LevelDB(fileInfo.Md5,fileInfo,fpath)
+			return
+		}
+		req:=httplib.Get(downloadUrl)
+		req.SetTimeout(time.Second*30,time.Second*time.Duration(timeout))
+		if err=req.ToFile(fpathTmp);err!=nil{
+
+		}
+
+	}
+
+
+
+
 
 }
 
