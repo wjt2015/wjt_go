@@ -1082,6 +1082,28 @@ func (s *Server) CheckDownloadAuth(w http.ResponseWriter,r *http.Request) (bool,
 			return true
 		}
 	}
+
+	//todo
+	//&&!s.IsPeer(r)&&!s.CheckAuth(w,r)
+	if Config().EnableDownloadAuth&&Config().AuthUrl!=""{
+		return false,errors.New("auth fail!")
+	}
+	//todo
+	//&& s.IsPeer(r)
+	if Config().DownloadUseToken{
+		token=r.FormValue("token")
+		timestamp=r.FormValue("timestamp")
+
+		if token==""||timestamp==""{
+			return false,errors.New("invalid request!need token and timestamp!")
+		}
+
+		maxTimestamp=time.Now().Add(time.Second*time.Duration(Config().DownloadTokenExpire)).Unix()
+		minTimestamp=time.Now().Add(-time.Second*time.Duration(Config().DownloadTokenExpire)).Unix()
+		if ts,err=strconv.ParseInt(timestamp,10,64);err!=nil{
+			return false, errors.New("invalid timestamp!timestamp=%+v\n",timestamp)
+		}
+	}
 	
 
 }
