@@ -1199,7 +1199,88 @@ func (s *Server) DownloadSmallFileByURI(w http.ResponseWriter,r *http.Request) (
 		logrus.Errorf("height error!height=%s",height)
 	}
 	data,notFound,err=s.GetSmallFileByURI(w,r)
+	if data!=nil&&data[0]==1{
+		if isDownload{
+			s.SetDownloadHeader(w,r)
+		}
+		if imgWidth!=0||imgHeight!=0{
+			//todo
+			//s.ResizeImageByBytes(w,data[1:],uint(imgWidth),uint(imgHeight))
+			return true,nil
+		}
+		w.Write(data[1:])
+		return true,nil
+	}
+	return false,errors.New("not found!")
 }
+
+func (s *Server) DownloadNormalFileByURI(w http.ResponseWriter,r *http.Request) (bool,error){
+	var(
+		err error
+		isDownload bool
+		imgWidth,imgHeight int
+		width,height string
+	)
+	r.ParseForm()
+	isDownload=true
+	downloadStr:=r.FormValue("download")
+	if downloadStr==""{
+		isDownload=Config().DefaultDownload
+	}else if downloadStr=="0"{
+		isDownload=false
+	}
+	width=r.FormValue("width")
+	height=r.FormValue("height")
+	if imgWidth,err=strconv.Atoi(width);err!=nil{
+		logrus.Errorf("width error!width=%s;err=%+v",width,err)
+	}
+	if imgHeight,err=strconv.Atoi(height);err!=nil{
+		logrus.Errorf("width error!height=%s;err=%+v",height,err)
+	}
+
+	if isDownload{
+		s.SetDownloadHeader(w,r)
+	}
+
+	fullPath,_:=s.GetFilePathFromRequest(w,r)
+	if imgWidth!=0||imgHeight!=0{
+		//todo
+		//s.ResizeImage(w,fullPath,uint(imgWidth),uint(imgHeight))
+		return true,nil
+	}
+	staticHandler.ServeHTTP(w,r)
+	return true,nil
+}
+
+func (s *Server) DownloadNotFound(w http.ResponseWriter,r *http.Request){
+	var (
+		err error
+		smallPath,fullPath string
+		isDownload bool
+		pathMd5,peer string
+		fileInfo *FileInfo
+	)
+	fullPath,smallPath=s.GetFilePathFromRequest(w,r)
+	isDownload=true
+	downloadStr:=r.FormValue("download")
+	if downloadStr==""{
+		isDownload=Config().DefaultDownload
+	}else if downloadStr=="0"{
+		isDownload=false
+	}
+
+	if smallPath!=""{
+		pathMd5=s.util.MD5(smallPath)
+	}else {
+		pathMd5=s.util.MD5(fullPath)
+	}
+	for _,peer = Config().Peers{
+
+	}
+
+
+}
+
 
 
 
