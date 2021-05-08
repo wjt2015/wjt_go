@@ -1101,13 +1101,105 @@ func (s *Server) CheckDownloadAuth(w http.ResponseWriter,r *http.Request) (bool,
 		maxTimestamp=time.Now().Add(time.Second*time.Duration(Config().DownloadTokenExpire)).Unix()
 		minTimestamp=time.Now().Add(-time.Second*time.Duration(Config().DownloadTokenExpire)).Unix()
 		if ts,err=strconv.ParseInt(timestamp,10,64);err!=nil{
-			return false, errors.New("invalid timestamp!timestamp=%+v\n",timestamp)
+			return false, errors.New(fmt.Sprintf("invalid timestamp!timestamp=%+v\n",timestamp))
 		}
+		if ts<minTimestamp||ts>maxTimestamp{
+			return false,errors.New(fmt.Sprintf("timestamp expire!ts=%d",ts))
+		}
+		fullPath,smallPath=s.GetFilePathFromRequest(w,r)
+		if smallPath!=""{
+			pathMd5=s.util.MD5(smallPath)
+		}else {
+			pathMd5=s.util.MD5(fullPath)
+		}
+
+		//todo
+/*		if fileInfo,err=s.GetFileInfoFromLevelDB(pathMd5);err!=nil{
+			//todo
+		}else {
+			ok:=CheckToken(token,fileInfo.Md5,timestamp)
+			if !ok{
+				return ok,errors.New(fmt.Sprintf("invalid token!token=%s\n",token))
+			}
+			return ok,nil
+		}*/
 	}
-	
+	//todo
+	//s.IsPeer(r)
+	if Config().EnableGoogleAuth{
+		fullPath=r.RequestURI[len(Config().Group)+2:]
+		fullPath=strings.Split(fullPath,"?")[0]
+		scene=strings.Split(fullPath,"/")[0]
+		code=r.FormValue("code")
+
+		if secret,ok=s.sceneMap.GetValue(scene);ok{
+			//todo
+/*			if !s.VerifyGoogleCode(secret.(string),code,int64(Config().DownloadTokenExpire/30)){
+				return false,errors.New(fmt.Sprintf("invalid google code!scene=%+v;secret=%+v;code=%+v;",scene,secret,code))
+			}*/
+		}
+
+	}
+	return true,nil
+}
+
+
+func (s *Server) GetSmallFileByURI(w http.ResponseWriter,r *http.Request)([]byte,bool,error){
+	var (
+		err error
+		data []byte
+		offset int64
+		length int
+		fullPath string
+		info os.FileInfo
+	)
+	fullPath,_=s.GetFilePathFromRequest(w,r)
+
+	if _,offset,length,err=s.ParseSmallFile(r.RequestURI);err!=nil{
+		return nil, false, err
+	}
+	if info,err=os.Stat(fullPath);err!=nil{
+		return nil, false, err
+	}
+	if info.Size()<(offset+int64(length)){
+		return nil,false,errors.New(fmt.Sprintf("no found!"))
+	}else {
+		if data,err=s.util.ReadFileByOffSet(fullPath,offset,length);err!=nil{
+			return nil, false, err
+		}
+		return data,false,err
+	}
 
 }
 
+func (s *Server) DownloadSmallFileByURI(w http.ResponseWriter,r *http.Request) (bool,error){
+	var (
+		err error
+		data []byte
+		isDownload bool
+		imgWidth int
+		imgHeight int
+		width ,height string
+		notFound bool
+	)
+	r.ParseForm()
+	isDownload=true
+	if r.FormValue("download")==""{
+		isDownload=Config().DefaultDownload
+	}
+	if r.FormValue("download")=="0"{
+		isDownload=false
+	}
+	width=r.FormValue("width")
+	height=r.FormValue("height")
+	if imgWidth,err=strconv.Atoi(width);err!=nil{
+		logrus.Errorf("width error!width=%s",width)
+	}
+	if imgHeight,err=strconv.Atoi(height);err!=nil{
+		logrus.Errorf("height error!height=%s",height)
+	}
+	data,notFound,err=s.GetSmallFileByURI(w,r)
+}
 
 
 
