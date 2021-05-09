@@ -1594,6 +1594,23 @@ func (s *Server) saveFileMd5Log(fileInfo *FileInfo,fileName string){
 			s.SaveStat()
 		}*/
 
+		//todo
+
+		if _,err=s.SaveFileInfoToLevelDB(logKey,fileInfo,s.logDB);err!=nil{
+		   logrus.Errorf("SaveFileInfoToLevelDB error!logKey=%s;err=%+v",logKey,err)
+		}
+
+		if _,err=s.SaveFileInfoToLevelDB(fileInfo.Md5,fileInfo,s.ldb);err!=nil{
+			logrus.Errorf("SaveFileInfoToLevelDB error!fileInfo.Md5=%s;err=%+v",fileInfo.Md5,err)
+		}
+
+		if _,err=s.SaveFileInfoToLevelDB(s.util.MD5(fullPath),fileInfo,s.ldb);err!=nil{
+			logrus.Errorf("SaveFileInfoToLevelDB error!fullPath=%s;err=%+v",fullPath,err)
+		}
+		return
+	}
+
+	if fileName==CONST_REMOVE_Md5_FILE_NAME{
 
 	}
 
