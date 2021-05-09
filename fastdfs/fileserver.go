@@ -23,6 +23,7 @@ import (
 	_ "net/http/pprof"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime/debug"
 	"strconv"
@@ -1595,8 +1596,7 @@ func (s *Server) saveFileMd5Log(fileInfo *FileInfo,fileName string){
 		}*/
 
 		//todo
-
-		if _,err=s.SaveFileInfoToLevelDB(logKey,fileInfo,s.logDB);err!=nil{
+/*		if _,err=s.SaveFileInfoToLevelDB(logKey,fileInfo,s.logDB);err!=nil{
 		   logrus.Errorf("SaveFileInfoToLevelDB error!logKey=%s;err=%+v",logKey,err)
 		}
 
@@ -1606,15 +1606,111 @@ func (s *Server) saveFileMd5Log(fileInfo *FileInfo,fileName string){
 
 		if _,err=s.SaveFileInfoToLevelDB(s.util.MD5(fullPath),fileInfo,s.ldb);err!=nil{
 			logrus.Errorf("SaveFileInfoToLevelDB error!fullPath=%s;err=%+v",fullPath,err)
-		}
+		}*/
 		return
 	}
 
-	if fileName==CONST_REMOVE_Md5_FILE_NAME{
+/*	if fileName==CONST_REMOVE_Md5_FILE_NAME{
+		//todo
+		if ok,err=s.IsExistFromLevelDB(fileInfo.Md5,s.ldb);ok{
+			s.statMap.AddCountInt64(logDate+"_"+CONST_STAT_FILE_COUNT_KEY,-1)
+			s.statMap.AddCountInt64(logDate+"_"+CONST_STAT_FILE_TOTAL_SIZE_KEY,-fileInfo.Size)
+			s.SaveStat()
+		}
+		s.RemoveKeyFromLevelDB(logKey,s.ldb)
 
+		md5Path=s.util.MD5(fullPath)
+		if err:=s.RemoveKeyFromLevelDB(fileInfo.Md5,s.ldb);err!=nil{
+			logrus.Errorf("RemoveKeyFromLevelDB error!fileInfo.Md5=%s;err=%+v;",fileInfo.Md5,err)
+		}
+		if err:=s.RemoveKeyFromLevelDB(md5Path,s.ldb);err!=nil{
+			logrus.Errorf("RemoveKeyFromLevelDB error!md5Path=%s;err=%+v;",md5Path,err)
+		}
+		logKey=fmt.Sprintf("%s_%s_%s",logDate,CONST_FILE_Md5_FILE_NAME,fileInfo.Md5)
+		s.RemoveKeyFromLevelDB(logKey,s.logDB)
+		return
+	}*/
+	//todo
+	//s.SaveFileInfoToLevelDB(logKey,fileInfo,s.logDB)
+}
+
+func (s *Server) checkPeerFileExist(peer string,md5sum string,fpath string) (*FileInfo,error){
+	var (
+		err error
+		fileInfo FileInfo
+	)
+	//todo
+	req:=httplib.Post(fmt.Sprintf("%s%s?md5=%s",peer,s.getRequestURI("check_file_exist"),md5sum))
+	req.Param("path",fpath)
+	req.Param("md5",md5sum)
+	req.SetTimeout(time.Second*5,time.Second*10)
+
+	if err=req.ToJSON(&fileInfo);err!=nil{
+		return &FileInfo{},err
+	}
+
+	if fileInfo.Md5==""{
+		return &fileInfo,errors.New("not found")
+	}
+	return &fileInfo,nil
+}
+
+func (s *Server) CheckFileExist(w http.ResponseWriter,r *http.Request){
+	var (
+		data []byte
+		err error
+		fileInfo *FileInfo
+		fpath string
+		fi os.FileInfo
+	)
+	r.ParseForm()
+	md5sum:=r.FormValue("md5")
+	fpath=r.FormValue("path")
+	if fileInfo,err=s.GetFileInfoFromLevelDB(md5sum);fileInfo!=nil{
+		if fileInfo.OffSet!=-1{
+			if data,err=json.Marshal(fileInfo);err!=nil{
+				logrus.Errorf("marshal error!fileInfo=%+v;err=%+v;",fileInfo,err)
+			}
+			w.Write(data)
+			return
+		}
+		fpath=DOCKER_DIR+fileInfo.Path+"/"+fileInfo.Name
+		if fileInfo.ReName!=""{
+			fpath=DOCKER_DIR+fileInfo.Path+"/"+fileInfo.ReName
+		}
+		if s.util.IsExist(fpath){
+			if data,err=json.Marshal(fileInfo);err==nil{
+				w.Write(data)
+				return
+			}else {
+				logrus.Errorf("Marshal error!fileInfo=%+v;err=%+v;",fileInfo,err)
+			}
+		}else {
+			if fileInfo.OffSet==-1{
+				//todo
+				//s.RemoveKeyFromLevelDB(md5sum,s.ldb)
+			}
+		}
+	}else {
+		if fpath!=""{
+			if fi,err=os.Stat(fpath);err==nil{
+				sum:=s.util.MD5(fpath)
+				fileInfo=&FileInfo{
+					Path:path.Dir(fpath),
+					Name: path.Base(fpath),
+					Size: fi.Size(),
+					Md5:sum,
+					Peers: []string{Config().Host},
+					OffSet: -1,
+					TimeStamp: fi.ModTime().Unix(),
+				}
+			}
+
+		}
 	}
 
 }
+
 
 
 
