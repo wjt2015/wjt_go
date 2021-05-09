@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/nfnt/resize"
 	"github.com/radovskyb/watcher"
 	"github.com/sirupsen/logrus"
@@ -1382,6 +1383,63 @@ func (s *Server) ResizeImageByBytes(w http.ResponseWriter,data []byte,width,heig
 		w.Write(data)
 	}
 }
+
+func (s *Server) ResizeImage(w http.ResponseWriter,fullPath string,width,height uint){
+	var (
+		img image.Image
+		err error
+		imgType string
+		file *os.File
+	)
+	if file,err=os.Open(fullPath);err!=nil{
+		logrus.Errorf("open file error!fullPath=%s;err=%+v;",fullPath,err)
+		return
+	}
+	if img,imgType,err=image.Decode(file);err!=nil{
+		logrus.Errorf("image decode error!err=%+v",err)
+		return
+	}
+	file.Close()
+
+	img=resize.Resize(width,height,img,resize.Lanczos3)
+	if imgType=="jpg"||imgType=="jpeg"{
+		jpeg.Encode(w,img,nil)
+	}else if imgType=="png"{
+		png.Encode(w,img)
+	}else {
+		file.Seek(0,0)
+		io.Copy(w,file)
+	}
+}
+
+func (s *Server) GetServerURI(r *http.Request) string{
+	return fmt.Sprintf("http://%s/",r.Host)
+}
+
+func (s *Server) CheckFileAndSendToPeer(date string,fileName string,isForceUpload bool){
+	logrus.Infof("date=%+v;fileName=%+v;isForceUpload=%+v;",date,fileName,isForceUpload)
+	var (
+		md5set mapset.Set
+		err error
+		md5s []interface{}
+	)
+	defer func(){
+		if re:=recover();re!=nil{
+			buffer:=debug.Stack()
+			logrus.Errorf("CheckFileAndSendToPeer;re=%+v;buffer=%+v;",re,string(buffer))
+		}
+	}()
+	if md5set,err=s.GetMd5sByDate(date,fileName);err!=nil{
+		log.Errorf("GetMd5sByDate error!date=%s;fileName=%s;err=%+v;",date,fileName,err)
+		return
+	}
+	md5s=md5set.ToSlice()
+	for _,md5:=range md5s{
+
+	}
+
+}
+
 
 
 
