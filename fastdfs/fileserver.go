@@ -1705,11 +1705,16 @@ func (s *Server) CheckFileExist(w http.ResponseWriter,r *http.Request){
 					TimeStamp: fi.ModTime().Unix(),
 				}
 			}
-
+			data,err=json.Marshal(fileInfo)
+			w.Write(data)
+			return
 		}
 	}
-
+	data,_=json.Marshal(FileInfo{})
+	w.Write(data)
 }
+
+
 
 
 
