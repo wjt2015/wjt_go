@@ -5,11 +5,17 @@ https://gitee.com/linux2014/go-fastdfs_2
  */
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/nfnt/resize"
 	"github.com/radovskyb/watcher"
 	"github.com/sirupsen/logrus"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"io"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
@@ -1274,12 +1280,112 @@ func (s *Server) DownloadNotFound(w http.ResponseWriter,r *http.Request){
 	}else {
 		pathMd5=s.util.MD5(fullPath)
 	}
-	for _,peer = Config().Peers{
+	//todo
+/*	for _,peer = range Config().Peers{
+		if fileInfo,err=s.checkPeerFileExist(peer,pathMd5,fullPath);err!=nil{
+			logrus.Errorf("checkPeerFileExists error!err=%+v",err)
+			continue
+		}
+		if fileInfo.Md5!=""{
+			go s.DownloadFromPeer(peer,fileInfo)
 
+			if isDownload{
+				s.SetDownloadHeader(w,r)
+			}
+			s.DownloadFileToResponse(peer+r.RequestURI,w,r)
+			return
+		}
+	}*/
+    w.WriteHeader(404)
+	return
+}
+
+func (s *Server) Download(w http.ResponseWriter,r *http.Request){
+	var (
+		err error
+		ok bool
+		smallPath,fullPath string
+		fi os.FileInfo
+	)
+	//redirect to upload
+	if r.RequestURI=="/"||r.RequestURI==""||r.RequestURI=="/"+Config().Group||r.RequestURI=="/"+Config().Group+"/"{
+		//todo
+		//s.Index(w,r)
+		return
 	}
 
-
+	if ok,err=s.CheckDownloadAuth(w,r);!ok{
+		log.Errorf("CheckDownloadAuth error!err=%+v\n",err)
+		s.NotPermit(w,r)
+		return
+	}
+	if Config().EnableCrossOrigin{
+		s.CrossOrigin(w,r)
+	}
+	fullPath,smallPath=s.GetFilePathFromRequest(w,r)
+	if smallPath==""{
+		if fi,err=os.Stat(fullPath);err!=nil{
+			s.DownloadNotFound(w,r)
+			return
+		}
+		if !Config().ShowDir&&fi.IsDir(){
+			w.Write([]byte("list dir deny"))
+			return
+		}
+		s.DownloadNormalFileByURI(w,r)
+		return
+	}
+	if smallPath!=""{
+		if ok,err=s.DownloadSmallFileByURI(w,r);!ok{
+			s.DownloadNotFound(w,r)
+			return
+		}
+		return
+	}
 }
+
+func (s *Server) DownloadFileToResponse(url string,w http.ResponseWriter,r *http.Request){
+	var (
+		err error
+		req *httplib.BeegoHTTPRequest
+		resp *http.Response
+	)
+	req=httplib.Get(url)
+	req.SetTimeout(time.Second*20,time.Second*600)
+	if resp,err=req.DoRequest();err!=nil{
+		logrus.Errorf("DoRequest error!err=%+v",err)
+		return
+	}
+	defer resp.Body.Close()
+	if _,err=io.Copy(w,resp.Body);err!=nil{
+		logrus.Errorf("Copy error!err=%+v\n",err)
+	}
+}
+
+func (s *Server) ResizeImageByBytes(w http.ResponseWriter,data []byte,width,height uint){
+	var(
+		img image.Image
+		err error
+		imgType string
+	)
+	reader:=bytes.NewReader(data)
+	if img,imgType,err=image.Decode(reader);err!=nil{
+		logrus.Errorf("decode error!err=%+v",err)
+		return
+	}
+	img=resize.Resize(width,height,img,resize.Lanczos3)
+	if imgType=="jpg"||imgType=="jpeg"{
+		jpeg.Encode(w,img,nil)
+	}else if imgType=="png"{
+		png.Encode(w,img)
+	}else{
+		w.Write(data)
+	}
+}
+
+
+
+
 
 
 
