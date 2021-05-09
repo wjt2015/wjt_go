@@ -1435,6 +1435,17 @@ func (s *Server) CheckFileAndSendToPeer(date string,fileName string,isForceUploa
 	}
 	md5s=md5set.ToSlice()
 	for _,md5:=range md5s{
+		if md5==nil{
+			continue
+		}
+		if fileInfo,_:=s.GetFileInfoFromLevelDB(md5.(string));fileInfo!=nil&&fileInfo.Md5!=""{
+			if isForceUpload{
+				fileInfo.Peers=[]string{}
+			}
+
+
+		}
+
 
 	}
 
