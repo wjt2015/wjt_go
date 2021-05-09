@@ -6,6 +6,7 @@ https://gitee.com/linux2014/go-fastdfs_2
 
 import (
 	"bytes"
+	"crypto/md5"
 	"errors"
 	"flag"
 	"fmt"
@@ -1422,6 +1423,7 @@ func (s *Server) CheckFileAndSendToPeer(date string,fileName string,isForceUploa
 		md5set mapset.Set
 		err error
 		md5s []interface{}
+		fileInfo *FileInfo
 	)
 	defer func(){
 		if re:=recover();re!=nil{
@@ -1429,27 +1431,178 @@ func (s *Server) CheckFileAndSendToPeer(date string,fileName string,isForceUploa
 			logrus.Errorf("CheckFileAndSendToPeer;re=%+v;buffer=%+v;",re,string(buffer))
 		}
 	}()
-	if md5set,err=s.GetMd5sByDate(date,fileName);err!=nil{
+	//todo
+/*	if md5set,err=s.GetMd5sByDate(date,fileName);err!=nil{
 		log.Errorf("GetMd5sByDate error!date=%s;fileName=%s;err=%+v;",date,fileName,err)
 		return
-	}
+	}*/
 	md5s=md5set.ToSlice()
 	for _,md5:=range md5s{
 		if md5==nil{
 			continue
 		}
-		if fileInfo,_:=s.GetFileInfoFromLevelDB(md5.(string));fileInfo!=nil&&fileInfo.Md5!=""{
+/*		if fileInfo,_=s.GetFileInfoFromLevelDB(md5.(string));fileInfo!=nil&&fileInfo.Md5!=""{
 			if isForceUpload{
 				fileInfo.Peers=[]string{}
 			}
+			if len(fileInfo.Peers)>len(Config().Peers){
+				continue
+			}
+
+			if s.util.Contains(s.host,fileInfo.Peers){
+				fileInfo.Peers=append(fileInfo.Peers,s.host)
+			}
+			if fileName==CONST_Md5_QUEUE_FILE_NAME{
+				//todo
+				//s.AppendToDownloadQueue(fileInfo)
+			}else {
+				//todo
+				//s.AppendToQueue(fileInfo)
+			}
+		}*/
+
+	}
+}
 
 
+func(s *Server) postFileToPeer(fileInfo *FileInfo){
+	var (
+		err error
+		peer,fileName,postURL,result,fpath string
+		info *FileInfo
+		fi os.FileInfo
+		i int
+		data []byte
+	)
+	defer func(){
+		if re:=recover();re!=nil{
+			buffer:=debug.Stack()
+			logrus.Errorf("postFileToPeer;re=%+v;buffer=%+v;",re,string(buffer))
 		}
+	}()
+
+	for i,peer=range Config().Peers{
+		if fileInfo.Peers==nil{
+			fileInfo.Peers=[]string{}
+		}
+		if s.util.Contains(peer,fileInfo.Peers){
+			continue
+		}
+		fileName=fileInfo.Name
+		if fileInfo.ReName!=""{
+			fileName=fileInfo.ReName
+			if fileInfo.OffSet!=-1{
+				fileName=strings.Split(fileInfo.ReName,",")[0]
+			}
+		}
+		fpath=DOCKER_DIR+fileInfo.Path+"/"+fileName
+		if !s.util.FileExists(fpath){
+			logrus.Warnf("file %s not found!",fpath)
+			continue
+		}else {
+		    if fileInfo.Size==0{
+		    	if fi,err=os.Stat(fpath);err!=nil{
+		    		logrus.Errorf("os.Stat error!fpath=%s;err=%s;",fpath,err)
+				}else {
+					fileInfo.Size=fi.Size()
+				}
+			}
+		}
+
+		//todo
+/*		if fileInfo.OffSet!=-2&&Config().EnableDistinctFile{
+			if info,err=s.CheckPeerFileExist(peer,fileInfo.Md5,"");info.Md5!=""{
+				fileInfo.Peers=append(fileInfo.Peers,peer)
+				if _,err=s.SaveFileInfoToLevelDB(fileInfo.Md5,fileInfo,s.ldb);err!=nil{
+					logrus.Errorf("SaveFileInfoToLevelDB error!err=%+v;",err)
+				}
+				continue
+			}
+		}*/
+		//todo
+        //postURL=fmt.Sprintf("%s%s",peer,s.getRequestURI("syncfile_info"))
+        b:=httplib.Post(postURL)
+        b.SetTimeout(time.Second*30,time.Second*30)
+        if data,err=json.Marshal(fileInfo);err!=nil{
+        	logrus.Errorf("marshal error!err=%+v\n",err)
+			return
+		}
+		b.Param("fileInfo",string(data))
+        result,err=b.String()
+        if err!=nil{
+        	if fileInfo.retry<=Config().RetryCount{
+        		fileInfo.retry=fileInfo.retry+1
+        		//todo
+        		//s.AppendToQueue(fileInfo)
+			}
+			logrus.Errorf("http requet error!err=%%+v;path=%s;",err,(fileInfo.Path+"/"+fileInfo.Name))
+		}
+		if !strings.HasPrefix(result,"http://"){
+			logrus.Infof("result=%s;",result)
+			if !s.util.Contains(peer,fileInfo.Peers){
+				fileInfo.Peers=append(fileInfo.Peers,peer)
+				//todo
+	/*			if _,err=s.SaveFileInfoToLevelDB(fileInfo.Md5,fileInfo,s.ldb);err!=nil{
+					logrus.Errorf("SaveFileInfoToLevelDB error!err=%+v",err)
+				}*/
+			}
+		}
+
+		if err!=nil{
+			logrus.Errorf("err=%+v",err)
+		}
+
+	}//for
+}
+
+func (s *Server) SaveFileMd5Log(fileInfo *FileInfo,fileName string){
+	for len(s.queueFileLog)+len(s.queueFileLog)/10>CONST_QUEUE_SIZE{
+		time.Sleep(time.Second*1)
+	}
+	info:=*fileInfo
+	s.queueFileLog<-&FileLog{FileInfo:&info,FileName:fileName}
+}
+
+func (s *Server) saveFileMd5Log(fileInfo *FileInfo,fileName string){
+	var(
+		err error
+		outname,logDate,fullPath,md5Path,logKey string
+		ok bool
+	)
+	defer func(){
+		if re:=recover();re!=nil{
+			buffer:=debug.Stack()
+			logrus.Errorf("saveFileMd5Log;re=%+v;buffer=%+v;",re,string(buffer))
+		}
+	}()
+	if fileInfo==nil||fileInfo.Md5==""||fileName==""{
+		logrus.Warnf("saveFileMd5Log!fileInfo=%+v;fileName=%s;",fileInfo,fileName)
+		return
+	}
+	logDate=s.util.GetDayFromTimeStamp(fileInfo.TimeStamp)
+	outname=fileInfo.Name
+	if fileInfo.ReName!=""{
+		outname=fileInfo.ReName
+	}
+	fullPath=fileInfo.Path+"/"+outname
+	logKey=fmt.Sprintf("%s_%s_%s",logDate,fileName,fileInfo.Md5)
+	if fileName==CONST_FILE_Md5_FILE_NAME{
+		//todo
+/*		if ok,err=s.IsExistFromLevelDB(fileInfo.Md5,s.ldb);!ok{
+			s.statMap.AddCountInt64(logDate+"_"+CONST_STAT_FILE_COUNT_KEY,1)
+			s.statMap.AddCountInt64(logDate+"_"+CONST_STAT_FILE_TOTAL_SIZE_KEY,fileInfo.Size)
+			s.SaveStat()
+		}*/
 
 
 	}
 
 }
+
+
+
+
+
 
 
 
