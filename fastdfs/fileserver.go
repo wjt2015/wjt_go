@@ -2138,8 +2138,149 @@ func (s *Server) RemoveFile(w http.ResponseWriter,r *http.Request){
 	)
 	r.ParseForm()
 	md5sum=r.FormValue("md5")
+	fpath=r.FormValue("path")
+	inner=r.FormValue("inner")
+	result.Status="fail"
+	if !s.IsPeer(r){
+		w.Write([]byte(s.GetClusterNotPermitMessage(r)))
+		return
+	}
+	if Config().AuthUrl!=""&&!s.CheckAuth(w,r){
+		s.NotPermit(w,r)
+		return
+	}
+    if fpath!=""&&md5sum==""{
+    	fpath=strings.Replace(fpath,"/"+Config().Group+"/",STORE_DIR_NAME+"/",1)
+    	md5sum=s.util.MD5(fpath)
+	}
+	if inner!="1"{
+		for _,peer:=range Config().Peers{
+			go func(peer string,md5sum string,fileInfo *FileInfo){
+				//todo
+				delUrl=fmt.Sprintf("%s%s",peer,s.getRequestURI("delete"))
+				req:=httplib.Post(delUrl)
+				req.Param("md5",md5sum)
+				req.Param("inner","1")
+				req.SetTimeout(time.Second*5,time.Second*10)
+				if _,err=req.String();err!=nil{
+				    logrus.Errorf("req error!err=%+v",err)
+				}
+			}(peer,md5sum,fileInfo)
+		}//for
+	}
 
+	if len(md5sum)<32{
+		result.Message="md5 unvalid"
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+    if fileInfo,err=s.GetFileInfoFromLevelDB(md5sum);err!=nil{
+    	result.Message=err.Error()
+    	w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+
+	if fileInfo.OffSet>=0{
+		result.Message="small file delete not support!"
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	name=fileInfo.Name
+	if fileInfo.ReName!=""{
+		name=fileInfo.ReName
+	}
+	fpath=fileInfo.Path+"/"+name
+	if fileInfo.Path!=""&&s.util.FileExists(DOCKER_DIR+fpath){
+		s.SaveFileMd5Log(fileInfo,CONST_REMOVE_Md5_FILE_NAME)
+		if err=os.Remove(DOCKER_DIR+fpath);err!=nil{
+			result.Message=err.Error()
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}else {
+			result.Message="remove success"
+			result.Status="ok"
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+		}
+	}
+	result.Message="fail to remove"
+	w.Write([]byte(s.util.JsonEncodePretty(result)))
 }
+
+func (s *Server) getRequestURI(action string) string{
+	var uri string
+	if Config().SupportGroupManage{
+		uri="/"+Config().Group+"/"+action
+	}else {
+		uri="/"+action
+	}
+	return uri
+}
+
+func (s *Server) BuildFileResult(fileInfo *FileInfo,r *http.Request) FileResult{
+	var (
+		outname string
+		fileResult FileResult
+		p string
+		downloadUrl string
+		domain string
+		host string
+		protocol string
+	)
+	if Config().EnableHttps{
+		protocol="https"
+	}else {
+		protocol="http"
+	}
+	host=strings.Replace(Config().Host,"http://","",-1)
+	if r!=nil{
+		host=r.Host
+	}
+	if !strings.HasPrefix(Config().DownloadDomain,"http"){
+		if Config().DownloadDomain==""{
+			Config().DownloadDomain=fmt.Sprintf("%s://%s",protocol,host)
+		}else {
+			Config().DownloadDomain=fmt.Sprintf("%s://%s",protocol,Config().DownloadDomain)
+		}
+	}
+
+	if Config().DownloadDomain!=""{
+		domain=Config().DownloadDomain
+	}else {
+		domain=fmt.Sprintf("%s://%s",protocol,host)
+	}
+	outname=fileInfo.Name
+	if fileInfo.ReName!=""{
+		outname=fileInfo.ReName
+	}
+	p=strings.Replace(fileInfo.Path,STORE_DIR_NAME+"/","",1)
+	if Config().SupportGroupManage{
+		p=Config().Group+"/"+p+"/"+outname
+	}else {
+		p=p+"/"+outname
+	}
+	downloadUrl=fmt.Sprintf("%s://%s/%s",protocol,host,p)
+
+	if Config().DownloadDomain!=""{
+		downloadUrl=fmt.Sprintf("%s/%s",Config().DownloadDomain,p)
+	}
+	fileResult.Url=downloadUrl
+	if Config().DefaultDownload{
+		fileResult.Url=fmt.Sprintf("%s?name=%s&download=1",downloadUrl,url.PathEscape(outname))
+	}
+	fileResult.Md5=fileInfo.Md5
+	fileResult.Path="/"+p
+	fileResult.Domain=domain
+	fileResult.Scene=fileInfo.Scene
+	fileResult.Size=fileInfo.Size
+	fileResult.ModTime=fileInfo.TimeStamp
+	fileResult.Src=fileResult.Path
+	fileResult.Scenes=fileInfo.Scene
+
+	return fileResult
+}
+
+
+
 
 
 
