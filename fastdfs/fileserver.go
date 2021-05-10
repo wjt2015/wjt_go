@@ -14,11 +14,13 @@ import (
 	"github.com/nfnt/resize"
 	"github.com/radovskyb/watcher"
 	"github.com/sirupsen/logrus"
+	"github.com/tdewolff/parse/v2/js"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
@@ -1834,9 +1836,153 @@ func (s *Server) SaveFileInfoToLevelDB(key string,fileInfo* FileInfo,db *leveldb
 	return fileInfo,nil
 }
 
+func isPublicIP(IP *net.IP) bool{
+	if IP.IsLoopback()||IP.IsLinkLocalMulticast()||IP.IsLinkLocalUnicast(){
+		return false
+	}
+	if ip4:=IP.To4();ip4!=nil{
+		switch true{
+		case ip4[0]==10||(ip4[0]==172&&ip4[1]>=16&&ip4[1]<=31)||(ip4[0]==192&&ip4[1]==168):
+			return false
+		default:
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) IsPeer(r *http.Request) bool{
+	var (
+		ip string
+		peer string
+		bflag bool
+		cidr *net.IPNet
+		err error
+	)
+	ip=s.util.GetClientIp(r)
+	clientIP:=net.ParseIP(ip)
+	if s.util.Contains("0.0.0.0",Config().AdminIps){
+		if isPublicIP(&clientIP){
+			return false
+		}
+		return true
+	}
+
+	if s.util.Contains(ip,Config().AdminIps){
+		return true
+	}
+	for _,v:=range Config().AdminIps{
+		if strings.Contains(v,"/"){
+		   if _,cidr,err=net.ParseCIDR(v);err!=nil{
+		   	  logrus.Errorf("ParseCIDR error!v=%s;err=%+v",v,err)
+			   return false
+		   }
+		   if cidr.Contains(clientIP){
+		   	return true
+		   }
+		}
+	}//for
+	realIp:=os.Getenv("GO_FASTDFS_IP")
+	if realIp==""{
+		realIp=s.util.GetPulicIP()
+	}
+	if ip=="127.0.0.1"||ip==realIp{
+		return true
+	}
+	ip="http://"+ip
+	bflag=false
+	for _,peer=range Config().Peers{
+		if strings.HasPrefix(peer,ip){
+			bflag=true
+			break
+		}
+	}
+	return bflag
+}
+
+func (s *Server) RecvMd5s(w http.ResponseWriter,r *http.Request){
+	var (
+		err error
+		md5str string
+		fileInfo *FileInfo
+		md5s []string
+	)
+	if !s.IsPeer(r){
+		logrus.Warnf("RecvMd5s;ip=%s;",s.util.GetClientIp(r))
+		//todo
+		//w.Write([]byte(s.GetClusterNotPermitMessage(r)))
+		return
+	}
+	r.ParseForm()
+
+	md5str=r.FormValue("md5s")
+	md5s=strings.Split(md5str,",")
+	go func(md5s []string){
+		for _,m:=range md5s{
+			if m!=""{
+				if fileInfo,err=s.GetFileInfoFromLevelDB(m);err!=nil{
+					logrus.Errorf("GetFileInfoFromLevelDB error!m=%s;err=%+v;",m,err)
+					continue
+				}
+				//todo
+				//s.AppendToQueue(fileInfo)
+			}
+		}
+	}(md5s)
+}
+
+func (s *Server) GetClusterNotPermitMessage(r *http.Request) string{
+	return fmt.Sprintf(CONST_MESSAGE_CLUSTER_IP,s.util.GetClientIp(r))
+}
+
+func (s *Server) GetMd5sForWeb(w http.ResponseWriter,r *http.Request){
+	var (
+		date string
+		err error
+		result mapset.Set
+		lines []string
+		md5s []interface{}
+	)
+	if !s.IsPeer(r){
+		w.Write([]byte(s.GetClusterNotPermitMessage(r)))
+		return
+	}
+	date=r.FormValue("date")
+	//todo
+	if result,err=s.GetMd5sByDate(date,CONST_FILE_Md5_FILE_NAME);err!=nil{
+		logrus.Errorf("GetMd5sByDate error!date=%s;err=%+v;",date,err)
+		return
+	}
+
+	md5s=result.ToSlice()
+	for _,line:=range md5s{
+		if line!=nil&&line!=""{
+			lines=append(lines,line.(string))
+		}
+	}
+	w.Write([]byte(strings.Join(lines,",")))
+}
+
+func (s *Server) GetMd5File(w http.ResponseWriter,r *http.Request){
+	var(
+		date string
+		fpath string
+		data []byte
+		err error
+	)
+	if !s.IsPeer(r){
+		return
+	}
+	fpath=DATA_DIR+"/"+date+"/"+CONST_FILE_Md5_FILE_NAME
+
+
 
 }
+
+
+
+
+
 
 
 
