@@ -2040,6 +2040,111 @@ func (s *Server) GetMd5ByDate(date string,fileName string) (mapset.Set,error){
 	return md5set,nil
 }
 
+func (s *Server) SyncFileInfo(w http.ResponseWriter,r *http.Request){
+	var (
+		err error
+		fileInfo FileInfo
+		fileInfoStr string
+		fileName string
+	)
+	r.ParseForm()
+	fileInfoStr=r.FormValue("fileInfo")
+
+	if !s.IsPeer(r){
+		logrus.Errorf("is not peer fileInfo!fileInfo=%+v",fileInfo)
+		return
+	}
+	if err=json.Unmarshal([]byte(fileInfoStr),&fileInfo);err!=nil{
+		w.Write([]byte(s.GetClusterNotPermitMessage(r)))
+		logrus.Errorf("unmarshal error!err=%+v",err)
+		return
+	}
+	if fileInfo.OffSet==-2{
+		s.SaveFileInfoToLevelDB(fileInfo.Md5,&fileInfo,s.ldb)
+	}else {
+		s.SaveFileMd5Log(&fileInfo,CONST_Md5_QUEUE_FILE_NAME)
+	}
+	//todo
+	s.AppendToDownloadQueue(&fileInfo)
+	fileName=fileInfo.Name
+
+	if fileInfo.ReName!=""{
+		fileName=fileInfo.ReName
+	}
+
+	p:=strings.Replace(fileInfo.Path,STORE_DIR+"/","",1)
+	downloadUrl:=fmt.Sprintf("http://%s/%s",r.Host,Config().Group+"/"+p+"/"+fileName)
+	logrus.Infof("SyncFileInfo!downloadUrl=%s;",downloadUrl)
+	w.Write([]byte(downloadUrl))
+}
+
+
+func (s *Server) CheckScene(scene string) (bool,error){
+
+	if len(Config().Scenes)==0{
+		return true,nil
+	}
+	var scenes []string
+	for _,s:=range Config().Scenes{
+		scenes=append(scenes,strings.Split(s,":")[0])
+	}
+	if !s.util.Contains(scene,scenes){
+		return false,errors.New("not valid scene")
+	}
+	return true,nil
+}
+
+func (s *Server) GetFileInfo(w http.ResponseWriter,r *http.Request){
+	var(
+		fpath string
+		md5sum string
+		fileInfo *FileInfo
+		err error
+		result JsonResult
+	)
+	md5sum=r.FormValue("md5")
+	fpath=r.FormValue("path")
+	result.Status="fail"
+
+	if !s.IsPeer(r){
+		w.Write([]byte(s.GetClusterNotPermitMessage(r)))
+		return
+	}
+
+	md5sum=r.FormValue("md5")
+	if fpath!=""{
+		fpath=strings.Replace(fpath,"/"+Config().Group+"/",STORE_DIR_NAME+"/",1)
+		md5sum=s.util.MD5(fpath)
+	}
+
+	if fileInfo,err =s.GetFileInfoFromLevelDB(md5sum);err!=nil{
+		logrus.Errorf("GetFileInfoFromLevelDB error!err=%+v",err)
+		result.Message=err.Error()
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+
+	result.Status="ok"
+	result.Data=fileInfo
+	w.Write([]byte(s.util.JsonEncodePretty(result)))
+}
+
+func (s *Server) RemoveFile(w http.ResponseWriter,r *http.Request){
+	var (
+		err error
+		md5sum,fpath,delUrl,inner,name string
+		fileInfo *FileInfo
+		result JsonResult
+	)
+	r.ParseForm()
+	md5sum=r.FormValue("md5")
+
+}
+
+
+
+
+
 
 
 
