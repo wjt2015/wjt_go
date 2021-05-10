@@ -1812,6 +1812,33 @@ func (s *Server) RemoveKeyFromLevelDB(key string,db *leveldb.DB) error{
 	return  db.Delete([]byte(key),nil)
 }
 
+func (s *Server) SaveFileInfoToLevelDB(key string,fileInfo* FileInfo,db *leveldb.DB) (*FileInfo,error){
+	if fileInfo==nil||db==nil{
+		return nil,errors.New("fileInfo is null or db is null")
+	}
+	var (
+		data []byte
+		err error
+	)
+	if data,err=json.Marshal(fileInfo);err!=nil{
+		return fileInfo, err
+	}
+	if err=db.Put([]byte(key),data,nil);err!=nil{
+		return fileInfo,err
+	}
+	if db==s.ldb{
+		logDate:=s.util.GetDayFromTimeStamp(fileInfo.TimeStamp)
+		logKey:=fmt.Sprintf("%s_%s_%s",logDate,CONST_FILE_Md5_FILE_NAME,fileInfo.Md5)
+		s.logDB.Put([]byte(logKey),data,nil)
+	}
+	return fileInfo,nil
+}
+
+func (s *Server) IsPeer(r *http.Request) bool{
+
+}
+
+
 
 
 
