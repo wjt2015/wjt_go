@@ -20,6 +20,7 @@ import (
 	"image/png"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -2279,7 +2280,59 @@ func (s *Server) BuildFileResult(fileInfo *FileInfo,r *http.Request) FileResult{
 	return fileResult
 }
 
+func (s *Server) SaveUploadFile(file multipart.File,header *multipart.FileHeader,
+	fileInfo *FileInfo,r *http.Request) (*FileInfo,error){
+	var(
+		err error
+		outFile *os.File
+		folder string
+		fi os.FileInfo
+	)
+	defer file.Close()
+	_,fileInfo.Name=filepath.Split(header.Filename)
+	if len(Config().Extensions)>0&&!s.util.Contains(path.Ext(fileInfo.Name),Config().Extensions){
+		return fileInfo,errors.New("error file extension mismatch!")
+	}
+	if Config().RenameFile{
+		fileInfo.ReName=s.util.MD5(s.util.GetUUID()+path.Ext(fileInfo.Name))
+	}
+	folder=time.Now().Format("20060102/15/04")
+	if Config().PeerId!=""{
+		folder=fmt.Sprintf("folder/%s",Config().PeerId)
+	}else {
+		folder=fmt.Sprintf("%s/%s",STORE_DIR,folder)
+	}
+	if fileInfo.Path!=""{
+		if strings.HasPrefix(fileInfo.Path,STORE_DIR){
+			folder=fileInfo.Path
+		}else{
+			folder=STORE_DIR+"/"+fileInfo.Path
+		}
+	}
 
+	if !s.util.FileExists(folder){
+		if err=os.MkdirAll(folder,0775);err!=nil{
+			logrus.Errorf("mkdir error!folder=%s",folder)
+		}
+	}
+	outPath:=fmt.Sprintf("%s/%s",folder,fileInfo.Name)
+	if fileInfo.ReName!=""{
+		outPath=fmt.Sprintf("%s/%s",folder,fileInfo.ReName)
+	}
+	if s.util.FileExists(outPath)&&Config().EnableDistinctFile{
+		for i:=0;i<10000;i++{
+			outPath=fmt.Sprintf("%s/%d_%s",folder,i,filepath.Base(header.Filename))
+			fileInfo.Name=fmt.Sprintf("%d_%s",i,header.Filename)
+			if !s.util.FileExists(outPath){
+				break
+			}
+		}
+	}
+
+
+
+
+}
 
 
 
