@@ -1975,9 +1975,74 @@ func (s *Server) GetMd5File(w http.ResponseWriter,r *http.Request){
 	}
 	fpath=DATA_DIR+"/"+date+"/"+CONST_FILE_Md5_FILE_NAME
 
-
-
+	if !s.util.FileExists(fpath){
+		w.WriteHeader(404)
+		return
+	}
+	if data,err=ioutil.ReadFile(fpath);err!=nil{
+		w.WriteHeader(500)
+		return
+	}
+	w.Write(data)
 }
+
+func (s *Server) GetMd5sMapByDate(date ,fileName string) (*goutil.CommonMap,error){
+	var (
+		err error
+		result *goutil.CommonMap
+		fpath,content,line string
+		lines,cols []string
+		data []byte
+	)
+	result=goutil.NewCommonMap(0)
+	if fileName==""{
+		fpath=DATA_DIR+"/"+date+"/"+CONST_FILE_Md5_FILE_NAME
+	}else {
+		fpath=DATA_DIR+"/"+date+"/"+fileName
+	}
+	if !s.util.FileExists(fpath){
+		return result,errors.New(fmt.Sprintf("fpath %s not found!",fpath))
+	}
+	if data,err=ioutil.ReadFile(fpath);err!=nil{
+		return result, err
+	}
+	content=string(data)
+	lines=strings.Split(content,"\n")
+	for _,line=range lines{
+		cols=strings.Split(line,"|")
+		if len(cols)>2{
+			if _,err=strconv.ParseInt(cols[1],10,64);err!=nil{
+				continue
+			}
+			result.Add(cols[0])
+		}
+	}//for
+	return result,nil
+}
+
+func (s *Server) GetMd5ByDate(date string,fileName string) (mapset.Set,error){
+	var (
+		keyPrefix string
+		md5set mapset.Set
+		keys []string
+	)
+	md5set=mapset.NewSet()
+	keyPrefix="%s_%s_"
+	keyPrefix=fmt.Sprintf("%s_%s_",date,fileName)
+	it:=server.logDB.NewIterator(util.BytesPrefix([]byte(keyPrefix)),nil)
+	for it.Next(){
+		keys=strings.Split(string(it.Key()),"_")
+		if len(keys)>=3{
+			md5set.Add(keys[2])
+		}
+	}//for
+	it.Release()
+	return md5set,nil
+}
+
+
+
+
 
 
 
