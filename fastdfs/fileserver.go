@@ -1666,6 +1666,7 @@ func (s *Server) CheckFileExist(w http.ResponseWriter,r *http.Request){
 	r.ParseForm()
 	md5sum:=r.FormValue("md5")
 	fpath=r.FormValue("path")
+	//todo
 	if fileInfo,err=s.GetFileInfoFromLevelDB(md5sum);fileInfo!=nil{
 		if fileInfo.OffSet!=-1{
 			if data,err=json.Marshal(fileInfo);err!=nil{
@@ -1713,6 +1714,107 @@ func (s *Server) CheckFileExist(w http.ResponseWriter,r *http.Request){
 	data,_=json.Marshal(FileInfo{})
 	w.Write(data)
 }
+
+func (s *Server) Sync(w http.ResponseWriter,r *http.Request){
+	r.ParseForm()
+	var jsonResult JsonResult
+	jsonResult.Status="fail"
+	//todo
+	if !s.IsPeer(r){
+		jsonResult.Message="client must be in cluster"
+		w.Write([]byte(s.util.JsonEncodePretty(jsonResult)))
+		return
+	}
+	date:=""
+	force:=""
+	inner:=""
+	isForceUpload:=false
+	force=r.FormValue("force")
+	date=r.FormValue("date")
+	inner=r.FormValue("inner")
+
+	if force=="1"{
+		isForceUpload=true
+	}
+	if inner!="1"{
+		for _,peer:=range Config().Peers{
+			req:=httplib.Post(peer+s.getRequestURI("sync"))
+			req.Param("force",force)
+			req.Param("inner",inner)
+			req.Param("date",date)
+			if _,err:=req.String();err!=nil{
+				logrus.Errorf("req error!err=%+v",err)
+			}
+		}//for
+	}
+	if date == ""{
+		jsonResult.Message="require params date &force,?date=20181230"
+		w.Write([]byte(s.util.JsonEncodePretty(jsonResult)))
+		return
+	}
+	date=strings.Replace(date,".","",-1)
+
+	if isForceUpload{
+		go s.CheckFileAndSendToPeer(date,CONST_FILE_Md5_FILE_NAME,isForceUpload)
+	}else {
+		go s.CheckFileAndSendToPeer(date,CONST_Md5_ERROR_FILE_NAME,isForceUpload)
+	}
+	jsonResult.Status="ok"
+	jsonResult.Message="jos is running"
+	w.Write([]byte(s.util.JsonEncodePretty(jsonResult)))
+}
+
+func (s *Server) IsExistFromLevelDB(key string,db *leveldb.DB) (bool,error){
+	return db.Has([]byte(key),nil)
+}
+
+func (s *Server) GetFileInfoFromLevelDB(key string) (*FileInfo,error){
+	var (
+		err error
+		data []byte
+		fileInfo FileInfo
+	)
+	if data,err=s.ldb.Get([]byte(key),nil);err!=nil{
+		return nil, err
+	}
+	if err=json.Unmarshal(data,&fileInfo);err!=nil{
+		return nil, err
+	}
+	return &fileInfo,nil
+}
+
+func (s *Server) SaveStat(){
+	defer func() {
+		if re := recover(); re != nil {
+			buffer := debug.Stack()
+			log.Error("SaveStatFunc")
+			log.Error(re)
+			log.Error(string(buffer))
+		}
+	}()
+	stat:=s.statMap.Get()
+	if v,ok:=stat[CONST_STAT_FILE_COUNT_KEY];ok{
+		switch v.(type) {
+		case int64,int32,int,float64,float32:
+			if v.(int64)>=0{
+				if data,err:=json.Marshal(stat);err!=nil{
+					logrus.Errorf("Marshal error!stat=%+v;err=%+v;",stat,err)
+				}else {
+					s.util.WriteBinFile(CONST_STAT_FILE_NAME,data)
+				}
+			}
+		}
+	}
+
+}
+
+func (s *Server) RemoveKeyFromLevelDB(key string,db *leveldb.DB) error{
+	return  db.Delete([]byte(key),nil)
+}
+
+
+
+
 
 
 
