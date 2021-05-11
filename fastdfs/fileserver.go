@@ -1037,7 +1037,7 @@ func (s *Server) CheckAuth(w http.ResponseWriter,r *http.Request) bool{
 	return true
 }
 
-func (s *Server) NotPermit(w http.ResponseWriter,rr *http.Request){
+func (s *Server) NotPermit(w http.ResponseWriter,r *http.Request){
 	w.WriteHeader(401)
 }
 
@@ -2326,13 +2326,286 @@ func (s *Server) SaveUploadFile(file multipart.File,header *multipart.FileHeader
 			if !s.util.FileExists(outPath){
 				break
 			}
-		}
+		}//for
 	}
 
+	logrus.Infof("upload:%s",outPath)
+	if outFile,err=os.Create(outPath);err!=nil{
+		return fileInfo,err
+	}
+	defer outFile.Close()
+	if fi,err=outFile.Stat();err!=nil{
+		logrus.Errorf("outFile stat error!err=%+v",err)
+		return fileInfo, errors.New(fmt.Sprintf("(error) file fail!err=%+v",err))
+	}else {
+		fileInfo.Size=fi.Size()
+	}
+	if fi.Size()!=header.Size{
+		return fileInfo,errors.New(fmt.Sprintf("(error) file incomplete!fi.size=%%d;header.size=%d;",fi.Size(),header.Size))
+	}
+	if Config().EnableDistinctFile{
+		fileInfo.Md5=s.util.GetFileSum(outFile,Config().FileSumArithmetic)
+	}else {
+		fileInfo.Md5=s.util.MD5(s.GetFilePathByInfo(fileInfo,false))
+	}
+	fileInfo.Path=strings.Replace(folder,DOCKER_DIR,"",1)
+	fileInfo.Peers=append(fileInfo.Peers,s.host)
+	return fileInfo,nil
+}
 
+func (s *Server) Upload(w http.ResponseWriter,r *http.Request){
+	var(
+		err error
+		fn string
+		folder string
+		fpTmp *os.File
+		fpBody *os.File
+	)
+	if r.Method==http.MethodGet{
+		//todo
+		//s.upload(w,r);
+		return
+	}
+	folder=STORE_DIR+"/_tmp/"+time.Now().Format("20060102")
+	if s.util.FileExists(folder){
+		if err=os.MkdirAll(folder,0777);err!=nil{
+			logrus.Errorf("MkdirAll error!err=%+v",err)
+		}
+	}
+	fn=folder+"/"+s.util.GetUUID()
+	if fpTmp,err=os.OpenFile(fn,os.O_RDWR|os.O_CREATE,0777);err!=nil{
+		logrus.Errorf("open file error!err=%+v",err)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	defer fpTmp.Close()
+	if _,err=io.Copy(fpTmp,r.Body);err!=nil{
+		logrus.Errorf("copy error!err=%+v",err)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	var fpBody *os.File
+	if fpBody,err=os.OpenFile(fn,os.O_RDONLY,0);err!=nil{
+		logrus.Errorf("open error!err=%+v",err)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	r.Body=fpBody
 
+	defer func(){
+		if err=fpBody.Close();err!=nil{
+			logrus.Errorf("fp Body close error!err=%+v",err)
+		}
+		if err=os.Remove(fn);err!=nil{
+			logrus.Errorf("remove fn!err=%+v",err)
+		}
+	}()
+	done:=make(chan bool,1)
+	s.queueUpload<-WrapReqResp{
+		w: &w,
+		r:r,
+		done: done,
+	}
+	<-done
+}
+
+func (s *Server) upload(w http.ResponseWriter,r *http.Request){
+	var (
+		err error
+		ok bool
+		md5sum,fileName,scene,output,code,msg string
+		fileInfo FileInfo
+		uploadFile multipart.File
+		uploadHeader *multipart.FileHeader
+		fileResult FileResult
+		result JsonResult
+		data []byte
+		secret interface{}
+	)
+	output=r.FormValue("output")
+	if Config().EnableCrossOrigin{
+		s.CrossOrigin(w,r)
+		if r.Method==http.MethodOptions{
+			return
+		}
+	}
+	result.Status="fail"
+	if Config().AuthUrl!=""&&!s.CheckAuth(w,r){
+		msg="auth fail"
+		logrus.Warnf("msg=%s;r.Form=%+v;",msg,r.Form)
+		s.NotPermit(w,r)
+		result.Message=msg
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+
+	if r.Method==http.MethodPost{
+		md5sum=r.FormValue("md5")
+		fileName=r.FormValue("filename")
+		output=r.FormValue("output")
+		if Config().ReadOnly{
+			msg="(error) readonly"
+			result.Message=msg
+			logrus.Warnf("msg=%s",msg)
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}
+
+		if Config().EnableCustomPath{
+			fileInfo.Path=r.FormValue("path")
+			fileInfo.Path=strings.Trim(fileInfo.Path,"/")
+		}
+		scene=r.FormValue("scene")
+		code=r.FormValue("code")
+		if scene==""{
+			scene=r.FormValue("scenes")
+		}
+		if Config().EnableGoogleAuth&&scene!=""{
+			if secret,ok=s.sceneMap.GetValue(scene);ok{
+				//todo
+				if !s.VerifyGoogleCode(secret.(string),code,int64(Config().DownloadTokenExpire/30)){
+					s.NotPermit(w,r)
+					result.Message="invalid request;google code error!"
+					logrus.Errorf("google auth error!msg=%S;",result.Message)
+					w.Write([]byte(s.util.JsonEncodePretty(result)))
+					return
+				}
+			}
+		}
+		fileInfo.Md5=md5sum
+		fileInfo.ReName=fileName
+		fileInfo.OffSet=-1
+		if uploadFile,uploadHeader,err=r.FormFile("file");err!=nil{
+			logrus.Errorf("upload error!err=%+v",err)
+			result.Message=err.Error()
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}
+		fileInfo.Peers=[]string{}
+		fileInfo.TimeStamp=time.Now().Unix()
+		if scene==""{
+			scene=Config().DefaultScene
+		}
+		if output==""{
+			output="text"
+		}
+		if !s.util.Contains(output,[]string{"json","text","json2"}){
+			msg="output just support json or text or json2"
+			result.Message=msg
+			logrus.Warnf("output unknown!output=%s",output)
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}
+		fileInfo.Scene=scene
+		if _,err=s.CheckScene(scene);err!=nil{
+			result.Message=err.Error()
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			logrus.Errorf("CheckScene error!scene=%s;err=%+v;",scene,err)
+			return
+		}
+		if _,err=s.SaveUploadFile(uploadFile,uploadHeader,&fileInfo,r);err!=nil{
+			result.Message=err.Error()
+			logrus.Errorf("err=%+v",err)
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}
+		if Config().EnableDistinctFile{
+			if v,_:=s.GetFileInfoFromLevelDB(fileInfo.Md5);v!=nil&&v.Md5!=""{
+				fileResult=s.BuildFileResult(v,r)
+				if s.GetFilePathByInfo(&fileInfo,false)!=s.GetFilePathByInfo(v,false){
+					os.Remove(s.GetFilePathByInfo(&fileInfo,false))
+				}
+				if output=="json"||output=="json2"{
+					if output=="json2"{
+						result.Data=fileResult
+						result.Status="ok"
+						w.Write([]byte(s.util.JsonEncodePretty(result)))
+						return
+					}
+					w.Write([]byte(s.util.JsonEncodePretty(fileResult)))
+				}else {
+					w.Write([]byte(fileResult.Url))
+				}
+				return
+			}
+		}
+		if fileInfo.Md5==""{
+			result.Message=" fileInfo.Md5 is null "
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			logrus.Errorf("fileInfo.md5 empty!")
+			return
+		}
+		if !Config().EnableDistinctFile{
+			fileInfo.Md5=s.util.MD5(s.GetFilePathByInfo(&fileInfo,false))
+		}
+		if Config().EnableMergeSmallFile&&fileInfo.Size<CONST_SMALL_FILE_SIZE{
+			//todo
+			if err=s.SaveSmallFile(&fileInfo);err!=nil{
+				result.Message=err.Error()
+				w.Write([]byte(s.util.JsonEncodePretty(result)))
+				logrus.Errorf("SaveSmallFile error!err=%+v",err)
+				return
+			}
+		}
+		s.saveFileMd5Log(&fileInfo,CONST_FILE_Md5_FILE_NAME)
+		go s.postFileToPeer(&fileInfo)
+		if fileInfo.Size<=0{
+			result.Message="file size is zero"
+			logrus.Errorf("err_msg=%s",result.Message)
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}
+		fileResult=s.BuildFileResult(&fileInfo,r)
+
+		if output=="json2"{
+			result.Data=fileResult
+			result.Status="ok"
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}else if output=="json"{
+			w.Write([]byte(s.util.JsonEncodePretty(fileResult)))
+		}else {
+			w.Write([]byte(fileResult.Url))
+		}
+		return
+	}else {
+		md5sum=r.FormValue("md5")
+		output=r.FormValue("output")
+		if md5sum==""{
+			result.Message="(error) if you want to upload fast md5 is require,and if you want to upload file,you must use post method"
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			logrus.Errorf("md5sum null")
+			return
+		}
+		if v,_:=s.GetFileInfoFromLevelDB(md5sum);v!=nil&&v.Md5!=""{
+			fileResult=s.BuildFileResult(v,r)
+			result.Data=fileResult
+			result.Status="ok"
+		}
+		if output=="json"||output=="json2"{
+			if data,err=json.Marshal(fileResult);err!=nil{
+				result.Message=err.Error()
+				w.Write([]byte(s.util.JsonEncodePretty(result)))
+				logrus.Errorf("marshal error!err=%+v",err)
+				return
+			}
+			if output=="json2"{
+				w.Write([]byte(s.util.JsonEncodePretty(result)))
+				return
+			}
+			w.Write(data)
+		}else {
+			w.Write([]byte(fileResult.Url))
+		}
+	}
+}
+
+func (s *Server) SaveSmallFile(fileInfo *FileInfo) error{
 
 }
+
+
+
 
 
 
