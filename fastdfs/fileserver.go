@@ -5,6 +5,7 @@ https://gitee.com/linux2014/go-fastdfs_2
  */
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/md5"
 	"errors"
@@ -27,6 +28,7 @@ import (
 	"net/smtp"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -34,6 +36,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -2763,10 +2766,199 @@ func (s *Server) Stat(w http.ResponseWriter,r *http.Request){
 			barSize=append(barSize,v.TotalSize)
 			category=append(category,v.Date)
 		}
-
+		dataMap["barCount"]=barCount
+		dataMap["barSize"]=barSize
+		dataMap["category"]=category
+		result.Data=dataMap
 	}
 
+	if inner == "1" {
+		w.Write([]byte(s.util.JsonEncodePretty(data)))
+	} else{
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+	}
 }
+
+func (s *Server) GetStat() []StatDateFileInfo{
+	var (
+		min,max,i int64
+		err error
+		rows []StatDateFileInfo
+		total StatDateFileInfo
+	)
+	min=20190101
+	max=20190101
+	for k:=range s.statMap.Get(){
+		ks:=strings.Split(k,"_")
+		if len(ks)==2{
+			if i,err=strconv.ParseInt(ks[0],10,64);err!=nil{
+				continue
+			}
+			if i>max{
+				i=max
+			}
+			if i<min{
+				i=min
+			}
+		}
+	}//for
+	for i:=min;i<=max;i++{
+		str:=fmt.Sprintf("%d",i)
+
+		if v,ok:=s.statMap.GetValue(str+"_"+CONST_STAT_FILE_COUNT_KEY);ok{
+			info:=StatDateFileInfo{
+				Date:str,
+			}
+			switch v.(type) {
+			case int64:
+				info.TotalSize=v.(int64)
+				total.TotalSize+=v.(int64)
+			}
+
+			if v,ok:=s.statMap.GetValue(str+"_"+CONST_STAT_FILE_COUNT_KEY);ok{
+				switch v.(type){
+				case int64:
+					info.FileCount=v.(int64)
+					total.FileCount+=v.(int64)
+				}
+			}
+			rows=append(rows,info)
+		}
+	}
+	total.Date="all"
+	rows=append(rows,total)
+	return rows
+}
+
+func (s *Server) RegisterExit(){
+	c:=make(chan os.Signal)
+	signal.Notify(c,syscall.SIGHUP,syscall.SIGINT,syscall.SIGTERM,syscall.SIGQUIT)
+
+	go func(){
+		for sig:=range c{
+			switch sig {
+			case syscall.SIGHUP,syscall.SIGINFO,syscall.SIGTERM,syscall.SIGQUIT:
+				s.ldb.Close()
+				logrus.Infof("sig exit!sig=%+v",sig)
+				os.Exit(1)
+			}
+		}
+	}()
+}
+
+func (s *Server) AppendToQueue(fileInfo *FileInfo){
+	for (len(s.queueToPeers)+CONST_QUEUE_SIZE/10)>CONST_QUEUE_SIZE{
+		time.Sleep(time.Millisecond*50)
+	}
+	s.queueToPeers <- *fileInfo
+}
+
+func (s *Server) AppendToDownloadQueue(fileInfo *FileInfo){
+	for (len(s.queueFromPeers)+CONST_QUEUE_SIZE/10)>CONST_QUEUE_SIZE{
+		time.Sleep(time.Millisecond*50)
+	}
+	s.queueFromPeers<-*fileInfo
+}
+
+func (s *Server) ConsumerDownload(){
+	for i:=0;i<Config().SyncWorker;i++{
+		go func(){
+			for{
+				fileInfo:=<-s.queueFromPeers
+				if len(fileInfo.Peers)<=0{
+					logrus.Warnf("Peer is null!fileInfo=%+v",fileInfo)
+					continue
+				}
+				for _,peer:=range fileInfo.Peers{
+					if strings.Contains(peer,"127.0.0.1"){
+						logrus.Warnf("sync error with 127.0.0.1!fileInfo=%+v",fileInfo)
+						continue
+					}
+					if peer!=s.host{
+						s.DownloadFromPeer(peer,&fileInfo)
+						break
+					}
+				}
+
+			}
+		}()
+	}
+}
+
+
+func (s *Server) RemoveDownloading(){
+	go func(){
+		for{
+			it:=s.ldb.NewIterator(util.BytesPrefix([]byte("downloading_")),nil)
+			for it.Next();{
+				key:=it.Key()
+				keys:=strings.Split(string(key),"_")
+				if len(keys)==3{
+					if t,err:=strconv.ParseInt(keys[1],10,64);err==nil&&(time.Now().Unix()-t>600){
+						os.Remove(DOCKER_DIR+keys[2])
+					}
+				}
+			}
+			it.Release()
+			time.Sleep(time.Minute*3)
+		}
+	}()
+}
+
+func (s *Server) ConsumerLog(){
+	go func(){
+		for{
+			fileLog:=<-s.queueFileLog
+			s.saveFileMd5Log(fileLog.FileInfo,fileLog.FileName)
+		}
+	}()
+}
+
+func (s *Server) LoadSearchDict(){
+	go func(){
+		logrus.Infof("LoadSearchDict ... ")
+		var(
+			f *os.File=nil
+			err error
+		)
+		if f,err=os.OpenFile(CONST_SERACH_FILE_NAME,os.O_RDONLY,0);err!=nil{
+			logrus.Errorf("open file error!CONST_SERACH_FILE_NAME=%s;err=%+v;",CONST_SERACH_FILE_NAME,err)
+			return
+		}
+		defer f.Close()
+		r:=bufio.NewReader(f)
+		for{
+			line,isPrefix,err:=r.ReadLine()
+			for isPrefix&&err==nil{
+				kvs:=strings.Split(string(line),"\t")
+				if len(kvs)==2{
+					s.searchMap.Put(kvs[0],kvs[1])
+				}
+			}
+
+		}
+		logrus.Infof("finish load search dict!")
+	}()
+}
+
+func (s *Server) SaveSearchDict(){
+	var(
+		err error
+		fp *os.File
+		searchDict map[string]interface{}
+		k string
+		v interface{}
+	)
+
+}
+
+
+
+
+
+
+
+
 
 
 
