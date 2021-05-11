@@ -220,7 +220,7 @@ var (
 	CONST_CONF_FILE_NAME=CONF_DIR+"/cfg.json"
 	CONST_SERVER_CRT_FILE_NAME=CONF_DIR+"/server.crt"
 	CONST_SERVER_KEY_FILE_NAME=CONF_DIR+"/server.key"
-	CONST_SERACH_FILE_NAME=DATA_DIR+"/search.txt"
+	CONST_SEARCH_FILE_NAME=DATA_DIR+"/search.txt"
 	CONST_UPLOAD_COUNTER_KEY="__CONST_UPLOAD_COUNTER_KEY__"
 	logConfigStr=`
 <seelog type="asynctimer" asyncinterval="1000" minlevel="trace" maxlevel="error">  
@@ -853,7 +853,7 @@ func (s *Server) DownloadFromPeer(peer string,fileInfo *FileInfo){
 		logrus.Errorf("DownloadFromPeer error!fileInfo=%+v\n",fileInfo)
 		return
 	}else {
-		fileInfo.retry++;
+		fileInfo.retry++
 	}
 	fileName=fileInfo.Name
 	if fileInfo.ReName!=""{
@@ -1544,7 +1544,7 @@ func(s *Server) postFileToPeer(fileInfo *FileInfo){
         		//todo
         		//s.AppendToQueue(fileInfo)
 			}
-			logrus.Errorf("http requet error!err=%%+v;path=%s;",err,(fileInfo.Path+"/"+fileInfo.Name))
+			logrus.Errorf("http requet error!err=%%+v;path=%s;",err, fileInfo.Path+"/"+fileInfo.Name)
 		}
 		if !strings.HasPrefix(result,"http://"){
 			logrus.Infof("result=%s;",result)
@@ -2949,11 +2949,41 @@ func (s *Server) SaveSearchDict(){
 		k string
 		v interface{}
 	)
+	s.lockMap.LockKey(CONST_SEARCH_FILE_NAME)
+	defer s.lockMap.UnLockKey(CONST_SEARCH_FILE_NAME)
+	searchDict=s.searchMap.Get()
+	if fp,err=os.OpenFile(CONST_SEARCH_FILE_NAME, os.O_RDWR,0755);err!=nil{
+		logrus.Errorf("open file error!err=%+v",err)
+		return
+	}
 
+	defer fp.Close()
+	for k,v=range searchDict{
+		fp.WriteString(fmt.Sprintf("%s\t%s",k,v.(string)))
+	}
 }
 
+func (s *Server) ConsumerPostToPeer(){
+	for i:=0;i<Config().SyncWorker;i++{
+		go func(){
+			for{
+			  fileInfo :=<-s.queueToPeers
+			  s.postFileToPeer(&fileInfo)
+			}
+		}()
+	}
+}
 
-
+func (s *Server) ConsumerUpload(){
+	for i:=0;i<Config().UploadWorker;i++{
+		for{
+			wr:<-s.queueUpload
+			s.upload(*wr.w,wr.r)
+			s.rtMap.AddCountInt64(CONST_UPLOAD_COUNTER_KEY,wr.r.ContentLength)
+			
+		}
+	}
+}
 
 
 
