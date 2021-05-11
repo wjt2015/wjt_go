@@ -29,6 +29,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -2695,6 +2696,77 @@ func (s *Server) BenchMark(w http.ResponseWriter,r *http.Request){
 	logrus.Infof("durationStr=%s",durationStr)
 }
 
+func (s *Server) RepairStatWeb(w http.ResponseWriter, r *http.Request) {
+	var (
+		result JsonResult
+		date   string
+		inner  string
+	)
+	if !s.IsPeer(r) {
+		result.Message = s.GetClusterNotPermitMessage(r)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	date = r.FormValue("date")
+	inner = r.FormValue("inner")
+	if ok, err := regexp.MatchString("\\d{8}", date); err != nil || !ok {
+		result.Message = fmt.Sprintf("invalid date!form_date=%s", date)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	if date == "" || len(date) != 8 {
+		date = s.util.GetToDay()
+	}
+	if inner!="1"{
+		for _,peer:=range Config().Peers{
+			req:=httplib.Post(peer+s.getRequestURI("repair_stat"))
+			req.Param("inner",inner)
+			req.Param("date",date)
+			if _,err:=req.String();err!=nil{
+				logrus.Errorf("post error!err=%+v",err)
+			}
+		}
+	}
+	result.Data=s.RepairStatByDate(date)
+	result.Status="ok"
+	w.Write([]byte(s.util.JsonEncodePretty(result)))
+}
+
+func (s *Server) Stat(w http.ResponseWriter,r *http.Request){
+	var(
+		result JsonResult
+		inner,echart string
+		category []string
+		barCount,barSize []int64
+		dataMap map[string]interface{}
+	)
+
+	if !s.IsPeer(r){
+		result.Message=s.GetClusterNotPermitMessage(r)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+
+	r.ParseForm()
+	inner=r.FormValue("inner")
+	echart=r.FormValue("echart")
+	//todo
+	data:=s.GetStat()
+	result.Status="ok"
+	result.Data=data
+
+	if echart=="1"{
+		dataMap=make(map[string]interface{},3)
+
+		for _,v:=range data{
+			barCount=append(barCount,v.FileCount)
+			barSize=append(barSize,v.TotalSize)
+			category=append(category,v.Date)
+		}
+
+	}
+
+}
 
 
 
