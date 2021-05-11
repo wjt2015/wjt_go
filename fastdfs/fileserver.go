@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"net/smtp"
 	"net/url"
 	"os"
 	"path"
@@ -93,7 +94,7 @@ type FileResult struct{
 
 type Mail struct{
 	User string `json:"user"`
-	Password int64 `json:"password"`
+	Password string `json:"password"`
 	Host string `json:"host"`
 }
 
@@ -2601,8 +2602,101 @@ func (s *Server) upload(w http.ResponseWriter,r *http.Request){
 }
 
 func (s *Server) SaveSmallFile(fileInfo *FileInfo) error{
+	var (
+		err error
+		fileName,fpath,largeDir,destPath,reName,fileExt string
+		srcFile *os.File
+		destFile *os.File
+	)
+	fileName=fileInfo.Name
+	fileExt=path.Ext(fileName)
+	if fileInfo.ReName!=""{
+		fileName=fileInfo.ReName
+	}
+	fpath=DOCKER_DIR+fileInfo.Path+"/"+fileName
+	largeDir=LARGE_DIR+"/"+Config().PeerId
 
+	if !s.util.FileExists(largeDir){
+		os.MkdirAll(largeDir,0775)
+	}
+	reName=fmt.Sprintf("%d",s.util.RandInt(100,300))
+	destPath=largeDir+"/"+reName
+	s.lockMap.LockKey(destPath)
+	defer s.lockMap.UnLockKey(destPath)
+	if s.util.FileExists(fpath){
+		if srcFile,err=os.OpenFile(fpath,os.O_CREATE|os.O_RDONLY,06666);err!=nil{
+			return err
+		}
+		defer func(){
+			os.Remove(fpath)
+			srcFile.Close()
+		}()
+		if destFile,err=os.OpenFile(destPath,os.O_CREATE|os.O_RDWR,06666);err!=nil{
+			return err
+		}
+		defer destFile.Close()
+		fileInfo.OffSet,err=destFile.Seek(0,2)
+		if _,err=destFile.Write([]byte("1"));err!=nil{
+			return err
+		}
+		fileInfo.OffSet--
+		fileInfo.Size++
+		fileInfo.ReName=fmt.Sprintf("%s,%d,%d,%s",reName,fileInfo.OffSet,fileInfo.Size,fileExt)
+		if _,err=io.Copy(destFile,srcFile);err!=nil{
+			return err
+		}
+		fileInfo.Path=strings.Replace(largeDir,DOCKER_DIR,"",1)
+	}
+	return nil
 }
+
+func (s *Server) SendToMail(to,subject,body,mailType string) error{
+	host:=Config().Mail.Host
+	user:=Config().Mail.User
+	password:=Config().Mail.Password
+	hp:=strings.Split(host,":")
+	auth:=smtp.PlainAuth("",user,password,hp[0])
+
+	contentType := "Content-Type: text/plain" + "; charset=UTF-8"
+	if mailType=="html"{
+		contentType = "Content-Type: text/" + mailType + "; charset=UTF-8"
+	}
+	msg := []byte("To: " + to + "\r\nFrom: " + user + ">\r\nSubject: " + "\r\n" + contentType + "\r\n\r\n" + body)
+	recvs:=strings.Split(to,";")
+	return smtp.SendMail(host,auth,user,recvs,msg)
+}
+
+func (s *Server) BenchMark(w http.ResponseWriter,r *http.Request){
+	t:=time.Now()
+	batch:=new(leveldb.Batch)
+	n:=100000000
+	for i:=0;i<n;i++{
+		f:=FileInfo{
+			Peers: []string{"http://192.168.0.1","http://192.168.2.5"},
+			Path: "20190201/19/02",
+		}
+		md5str:=s.util.MD5(strconv.Itoa(i))
+		f.Name=md5str
+		f.Md5=md5str
+		if data,err:=json.Marshal(&f);err==nil{
+			batch.Put([]byte(md5str),data)
+		}
+		if i%10000==0{
+			if batch.Len()>0{
+				server.ldb.Write(batch,nil)
+				batch.Reset()
+			}
+			logrus.Infof("i=%d;since_seconds=%d;",i,time.Since(t).Seconds())
+		}
+	}
+
+	durationStr:=time.Since(t).String()
+	s.util.WriteFile("time.txt",durationStr)
+	logrus.Infof("durationStr=%s",durationStr)
+}
+
+
+
 
 
 
