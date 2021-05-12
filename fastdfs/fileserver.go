@@ -21,6 +21,7 @@ import (
 	"image/png"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -3142,6 +3143,45 @@ func (s *Server) CleanAndBackup(){
 	}()
 }
 
+func (s *Server) LoadFileInfoByDate(date string,fileName string) (mapset.Set,error){
+	defer func() {
+		if re := recover(); re != nil {
+			buffer := debug.Stack()
+			log.Error("autoRepairFunc")
+			log.Error(re)
+			log.Error(string(buffer))
+		}
+	}()
+	var(
+		err error
+		keyPrefix string
+		fileInfos mapset.Set
+	)
+	fileInfos=mapset.NewSet()
+	keyPrefix=fmt.Sprintf("%s_%s_",date,fileName)
+	it:=server.logDB.NewIterator(util.BytesPrefix([]byte(keyPrefix)),nil)
+	defer it.Release()
+	for it.Next(){
+		var fileInfo FileInfo
+		if err=json.Unmarshal(it.Value(),&fileInfo);err!=nil{
+			logrus.Warnf("umarshal error!v=%+v",it.Value())
+			continue
+		}
+		fileInfos.Add(&fileInfo)
+	}
+	return fileInfos,nil
+}
+
+
+func (s *Server) LoadQueueSendToPeer(){
+	if queue,err:=s.LoadFileInfoByDate(s.util.GetToDay(),CONST_Md5_QUEUE_FILE_NAME);err!=nil{
+		logrus.Errorf("LoadFileInfoByDate error!date=%+v",s.util.GetToDay())
+	}else {
+		for fileInfo:=range queue.Iter(){
+			s.AppendToDownloadQueue(fileInfo.(*FileInfo))
+		}
+	}
+}
 
 
 
