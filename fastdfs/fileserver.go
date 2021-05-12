@@ -3183,6 +3183,40 @@ func (s *Server) LoadQueueSendToPeer(){
 	}
 }
 
+func (s *Server) checkInClusterStatus(){
+	defer func() {
+		if re := recover(); re != nil {
+			buffer := debug.Stack()
+			log.Error("CheckClusterStatus")
+			log.Error(re)
+			log.Error(string(buffer))
+		}
+	}()
+	var (
+		status JsonResult
+		err error
+		subject,body string
+		req *httplib.BeegoHTTPRequest
+		data []byte
+	)
+	for _,peer:=range Config().Peers{
+		req=httplib.Get(fmt.Sprintf("%s%s",peer,s.getRequestURI("status")))
+		req.SetTimeout(time.Second*5,time.Second*5)
+		err=req.ToJSON(&status)
+		if err!=nil||status.Status!="ok"{
+			for _,to:=range Config().AlarmReceivers{
+
+			}
+		}
+	}
+
+
+}
+
+func (s *Server) CheckClusterStatus(){
+
+}
+
 
 
 
