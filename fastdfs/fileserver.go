@@ -14,14 +14,17 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/nfnt/resize"
 	"github.com/radovskyb/watcher"
+	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/sirupsen/logrus"
+	"github.com/sjqzhang/googleAuthenticator"
 	"github.com/tdewolff/parse/v2/js"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"io"
 	"io/ioutil"
-	"math/rand"
+	random "math/rand"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -33,6 +36,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -3205,17 +3209,571 @@ func (s *Server) checkInClusterStatus(){
 		err=req.ToJSON(&status)
 		if err!=nil||status.Status!="ok"{
 			for _,to:=range Config().AlarmReceivers{
+				subject="fastdfs server error!"
+				if err!=nil{
+					body=fmt.Sprintf("%s\nserver:%s\nerror:\n%s",subject,peer,err.Error())
+				}else {
+					body=fmt.Sprintf("%s\nserver:%s\n",subject,peer)
+				}
+				if err=s.SendToMail(to,subject,body,"text");err!=nil{
+					logrus.Errorf("sendToMail error!to=%s;err=%+v;",to,err)
+				}
+			}//for AlarmReceivers;
+			if Config().AlarmUrl!=""{
+				req=httplib.Post(Config().AlarmUrl)
+				req.SetTimeout(time.Second*10,time.Second*10)
+				req.Param("message",body)
+				req.Param("subject",subject)
+				if _,err=req.String();err!=nil{
+					logrus.Errorf("req error!alarmUrl=%s;err=%+v;",Config().AlarmUrl,err)
+				}
+			}
+			logrus.Errorf("status error!err=%+v",err)
+		}else {//if err!=nil||status.Status!="ok"
+			var statusMap map[string]interface{}
+			if data,err=json.Marshal(status.Data);err!=nil{
+				logrus.Errorf("Marshal error!err=%+v",err)
+				return
+			}
+			if err=json.Unmarshal(data,&statusMap);err!=nil{
+				logrus.Errorf("Unmarshal error!err=%+v",err)
+				return
+			}
+			if v,ok:=statusMap["Fs.PeerId"];ok&&v==Config().PeerId{
+				logrus.Errorf(fmt.Sprintf("PeerId is conflict:%s",v))
+			}
+			if v,ok:=statusMap["Fs.Local"];ok&& v==Config().Host{
+				logrus.Errorf(fmt.Sprintf("Host is conflict:%s",v))
+			}
+		}
+	}
+}
 
+func (s *Server) CheckClusterStatus(){
+	s.checkInClusterStatus()
+	go func(){
+		time.Sleep(time.Minute*3)
+		s.checkInClusterStatus()
+	}()
+}
+
+
+func (s *Server) RepairFileInfo(w http.ResponseWriter,r *http.Request){
+	if !s.IsPeer(r){
+		w.Write([]byte(s.GetClusterNotPermitMessage(r)))
+		return
+	}
+	if !Config().EnableMigrate{
+		w.Write([]byte("please set enable_migrate=true"))
+		return
+	}
+	result:=JsonResult{
+		Status: "ok",
+		Message: "repair job start,don't try again,very danger!",
+	}
+	go s.RepairFileInfoFromFile()
+	w.Write([]byte(s.util.JsonEncodePretty(result)))
+}
+
+func (s *Server) Reload(w http.ResponseWriter,r *http.Request){
+	var(
+		err error
+		data []byte
+		cfg GlobalConfig
+		action,cfgjson string
+		result JsonResult
+	)
+	result.Status="fail"
+	r.ParseForm()
+	if !s.IsPeer(r){
+		w.Write([]byte(s.GetClusterNotPermitMessage(r)))
+		return
+	}
+	cfgjson=r.FormValue("cfg")
+	action=r.FormValue("action")
+	if action=="get"{
+		result=JsonResult{
+			Data:Config(),
+			Status: "ok",
+		}
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	if action=="set"{
+		if cfgjson==""{
+			result.Message="(error) param cfg(json) require!"
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}
+		if err=json.Unmarshal([]byte(cfgjson),&cfg);err!=nil{
+			logrus.Errorf("unmarshal error!cfgjson=%s;err=%+v",cfgjson,err)
+			result.Message=err.Error()
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}
+		result.Status="ok"
+		cfgjson=s.util.JsonEncodePretty(cfg)
+		s.util.WriteFile(CONST_CONF_FILE_NAME,cfgjson)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	if action=="reload"{
+		if data,err=ioutil.ReadFile(CONST_CONF_FILE_NAME);err!=nil{
+			result.Message=err.Error()
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}
+		if err=json.Unmarshal(data,&cfg);err!=nil{
+			result.Message=err.Error()
+			w.Write([]byte(s.util.JsonEncodePretty(result)))
+			return
+		}
+		ParseConfig(CONST_CONF_FILE_NAME)
+		//todo
+		s.initComponent(true)
+		result.Status="ok"
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	if action==""{
+		w.Write([]byte("(error) action support set(json) get reload"))
+	}
+}
+
+func (s *Server) RemoveEmptyDir(w http.ResponseWriter,r *http.Request){
+	result:=JsonResult{
+		Status: "ok",
+	}
+
+	if s.IsPeer(r){
+		go s.util.RemoveEmptyDir(DATA_DIR)
+		go s.util.RemoveEmptyDir(STORE_DIR)
+		result.Message="clean job start ..,don't try again"
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+	}else {
+		result.Message=s.GetClusterNotPermitMessage(r)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+	}
+
+}
+
+
+func (s *Server) Backup(w http.ResponseWriter,r *http.Request){
+	var(
+		err error
+		date,inner,url string
+		result JsonResult
+	)
+	result.Status="ok"
+	r.ParseForm()
+	date=r.FormValue("date")
+	inner=r.FormValue("inner")
+	if date==""{
+		date=s.util.GetToDay()
+	}
+	if s.IsPeer(r){
+		if inner!="1"{
+			for _,peer:=range Config().Peers{
+				go func(){
+					url=fmt.Sprintf("%s%s",peer,s.getRequestURI("backup"))
+					req:=httplib.Post(url)
+					req.Param("date",date)
+					req.Param("inner",inner)
+					req.SetTimeout(time.Second*5,time.Second*120)
+					if _,err=req.String();err!=nil{
+						logrus.Errorf("backup req error!err=+v",err)
+					}
+				}()
+			}
+		}
+		go s.BackUpMetaDataByDate(date)
+		result.Message="backup job start ... "
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+	}else {
+		result.Message=s.GetClusterNotPermitMessage(r)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+	}
+}
+
+// Notice: performance is poor,just for low capacity,but low memory , if you want to high performance,use searchMap for search,but memory ....
+func (s *Server) Search(w http.ResponseWriter,r *http.Request){
+	var(
+		result JsonResult
+		err error
+		kw string
+		count int
+		fileInfos []FileInfo
+		md5s []string
+	)
+	kw=r.FormValue("kw")
+	if !s.IsPeer(r){
+		result.Message=s.GetClusterNotPermitMessage(r)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	it:=s.ldb.NewIterator(nil,nil)
+	defer it.Release()
+	for it.Next(){
+		var fileInfo FileInfo
+		value:=it.Value()
+		if err=json.Unmarshal(value,&fileInfo);err!=nil{
+			logrus.Errorf("Unmarshal error!value=%+v;err=%+v",value,err)
+			continue
+		}
+		if strings.Contains(fileInfo.Name,kw)&&!s.util.Contains(fileInfo.Md5,md5s){
+			count++
+			fileInfos=append(fileInfos,fileInfo)
+			md5s=append(md5s,fileInfo.Md5)
+		}
+		if count>=100{
+			break
+		}
+	}
+	result=JsonResult{
+		Status: "ok",
+		Data:fileInfos,
+	}
+	w.Write([]byte(s.util.JsonEncodePretty(result)))
+}
+
+func (s *Server) SearchDict(kw string) []FileInfo{
+	var	fileInfos []FileInfo
+
+	for tuple:=range s.searchMap.Iter(){
+		if strings.Contains(tuple.Val.(string),kw){
+			if fileInfo,err:=s.GetFileInfoFromLevelDB(tuple.Key);fileInfo!=nil&&err==nil{
+				fileInfos=append(fileInfos,*fileInfo)
+			}
+		}
+	}
+	return fileInfos
+}
+
+
+func (s *Server) ListDir(w http.ResponseWriter,r *http.Request){
+	var(
+		result JsonResult
+		dir,tmpDir string
+		fileInfos []os.FileInfo
+		err error
+		fileResult []FileInfoResult
+	)
+	if !s.IsPeer(r){
+		result.Message=s.GetClusterNotPermitMessage(r)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	dir=r.FormValue("dir")
+	dir=strings.Replace(dir,".","",-1)
+	if tmpDir,err=os.Readlink(dir);tmpDir!=""&&err==nil{
+		dir=tmpDir
+	}
+	fileInfos,err=ioutil.ReadDir(DOCKER_DIR+STORE_DIR_NAME+"/"+dir)
+	if err!=nil{
+		logrus.Errorf("error=%+v",err)
+		result.Message=err.Error()
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+
+	for _,f:=range fileInfos{
+		fi:=FileInfoResult{
+			Name: f.Name(),
+			Size: f.Size(),
+			IsDir: f.IsDir(),
+			ModTime: f.ModTime().Unix(),
+			Path: dir,
+			Md5:s.util.MD5(strings.Replace(STORE_DIR_NAME+"/"+dir+"/"+f.Name(),"//","/",-1)),
+		}
+		fileResult=append(fileResult,fi)
+	}
+	result=JsonResult{
+		Status: "ok",
+		Data:fileResult,
+	}
+	w.Write([]byte(s.util.JsonEncodePretty(result)))
+}
+/**
+discrepancy:差异; 不符合; 不一致;
+
+*/
+func (s *Server) VerifyGoogleCode(secret string,code string,discrepancy int64) bool{
+	goauth:=googleAuthenticator.NewGAuth()
+	if ok,err:=goauth.VerifyCode(secret,code,discrepancy);ok{
+		return ok
+	}else {
+		logrus.Errorf("error=%+v",err)
+		return ok
+	}
+}
+
+func (s *Server) GenGoogleCode(w http.ResponseWriter,r *http.Request){
+	var(
+		err error
+		result JsonResult
+		secret string
+		goauth *googleAuthenticator.GAuth
+	)
+	r.ParseForm()
+	goauth=googleAuthenticator.NewGAuth()
+	secret=r.FormValue("secret")
+	result=JsonResult{
+		Status: "ok",
+		Message: "ok",
+	}
+	if !s.IsPeer(r){
+		result.Message=s.GetClusterNotPermitMessage(r)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	if result.Data,err=goauth.GetCode(secret);err!=nil{
+		result.Message=err.Error()
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	w.Write([]byte(s.util.JsonEncodePretty(result)))
+}
+
+
+func (s *Server) GenGoogleSecret(w http.ResponseWriter,r *http.Request){
+	result:=JsonResult{
+		Status: "ok",
+		Message: "ok",
+	}
+	if !s.IsPeer(r){
+		result.Message=s.GetClusterNotPermitMessage(r)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+		return
+	}
+	//getseed
+	seeds:="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+	str:=""
+	random.Seed(time.Now().Unix())
+	for i:=0;i<16;i++{
+		str+=string(seeds[random.Intn(32)])
+	}
+	result.Data=s
+	w.Write([]byte(s.util.JsonEncodePretty(result)))
+}
+
+func (s *Server) Report(w http.ResponseWriter,r *http.Request){
+	var(
+		reportFileName string
+		result JsonResult
+		html string
+	)
+	result.Status="ok"
+	r.ParseForm()
+	if s.IsPeer(r){
+		reportFileName=STATIC_DIR+"/report.html"
+		if s.util.IsExist(reportFileName){
+			if data,err:=s.util.ReadBinFile(reportFileName);err!=nil{
+				logrus.Errorf("ReadBinFile error!err=%+v",err)
+				result.Message=err.Error()
+				w.Write([]byte(s.util.JsonEncodePretty(result)))
+				return
+			}else {
+				html=string(data)
+				if Config().SupportGroupManage{
+					html=strings.Replace(html,"{group}","/"+Config().Group,1)
+				}else {
+					html=strings.Replace(html,"{group}","",1)
+				}
+				w.Write([]byte(html))
+				return
+			}
+		}else {
+			w.Write([]byte(fmt.Sprintf("%s is not found!",reportFileName)))
+		}
+	}else {
+		w.Write([]byte(s.GetClusterNotPermitMessage(r)))
+	}
+}
+
+func (s *Server) Repair(w http.ResponseWriter,r *http.Request){
+	var(
+		force string
+		forceRepair bool
+		result JsonResult
+	)
+	result.Status="ok"
+	r.ParseForm()
+	force=r.FormValue("force")
+	if force=="1"{
+		forceRepair=true
+	}
+	if s.IsPeer(r){
+		go s.AutoRepair(forceRepair)
+		result.Message="repair job start ... "
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+	}else {
+		result.Message=s.GetClusterNotPermitMessage(r)
+		w.Write([]byte(s.util.JsonEncodePretty(result)))
+	}
+}
+
+func (s *Server) Status(w http.ResponseWriter,r *http.Request){
+	var(
+		status JsonResult
+		sts map[string]interface{}
+		today,appDir string
+		sumset mapset.Set
+		ok bool
+		v interface{}
+		err error
+		diskInfo *disk.UsageStat
+		memInfo *mem.VirtualMemoryStat
+	)
+	memStat:=new(runtime.MemStats)
+	runtime.ReadMemStats(memStat)
+	today=s.util.GetToDay()
+	sts=make(map[string]interface{})
+	sts["Fs.QueueFromPeers"]=len(s.queueFromPeers)
+	sts["Fs.QueueToPeers"]=len(s.queueToPeers)
+	sts["Fs.QueueFileLog"]=len(s.queueFileLog)
+
+	for _,k:=range []string{CONST_FILE_Md5_FILE_NAME,CONST_Md5_ERROR_FILE_NAME,CONST_Md5_QUEUE_FILE_NAME}{
+		k2:=fmt.Sprintf("%s_%s",today,k)
+		if v,ok=s.sumMap.GetValue(k2);ok{
+			sumset=v.(mapset.Set)
+			if k==CONST_Md5_QUEUE_FILE_NAME{
+				sts["Fs.QueueSetSize"]=sumset.Cardinality()
+			}else if k==CONST_Md5_ERROR_FILE_NAME{
+				sts["Fs.ErrorSetSize"]=sumset.Cardinality()
+			}else if k==CONST_FILE_Md5_FILE_NAME{
+				sts["Fs.FileSetSize"]=sumset.Cardinality()
 			}
 		}
 	}
 
+	sts["Fs.AutoRepair"]=Config().AutoRepair
+	sts["Fs.QueueUpload"]=len(s.queueUpload)
+	sts["Fs.RefreshInterval"]=Config().RefreshInterval
+	sts["Fs.Peers"]=Config().Peers
+	sts["Fs.Local"]=s.host
+	sts["Fs.FileStats"]=s.GetStat()
+	sts["Fs.ShowDir"]=Config().ShowDir
+	sts["Sys.NumGoroutne"]=runtime.NumGoroutine()
+	sts["Sys.NumCpu"]=runtime.NumCPU()
+	sts["Sys.Alloc"]=memStat.Alloc
+	sts["Sys.TotalAlloc"]=memStat.TotalAlloc
+	sts["Sys.HeapAlloc"]=memStat.HeapAlloc
+	sts["Sys.Frees"]=memStat.Frees
+	sts["Sys.NumGC"]=memStat.NumGC
+	sts["Sys.GCCPUFraction"]=memStat.GCCPUFraction
+	sts["Sys.GCSys"]=memStat.GCSys
+	//sts["Sys.MemInfo"]=memStat
+	if appDir,err=filepath.Abs(".");err!=nil{
+		logrus.Errorf("abs error!err=%+v",err)
+	}
+	if diskInfo,err=disk.Usage(appDir);err!=nil{
+		logrus.Errorf("disk usage error!err=%+v",err)
+	}
+	sts["Sys.DiskInfo"]=diskInfo
+
+	if memInfo,err=mem.VirtualMemory();err!=nil{
+		logrus.Errorf("virtualMemory error!err=%+v",err)
+	}
+	sts["Sys.MemInfo"]=memInfo
+	status.Status="ok"
+	status.Data=sts
+	w.Write([]byte(s.util.JsonEncodePretty(status)))
+}
+
+
+func (s *Server) HeartBeat(w http.ResponseWriter,r *http.Request){
+}
+
+func (s *Server) Index(w http.ResponseWriter,r *http.Request){
+	var uploadUrl, uploadBigUrl, uppy string
+
+	uploadUrl = "/upload"
+	uploadBigUrl=CONST_BIG_UPLOAD_PATH_SUFFIX
+	if Config().EnableWebUpload{
+		uploadUrl=fmt.Sprintf("/%s/upload",Config().Group)
+		uploadBigUrl=fmt.Sprintf("/%s%s",Config().Group,CONST_BIG_UPLOAD_PATH_SUFFIX)
+		uppy = `<html>
+			  
+			  <head>
+				<meta charset="utf-8" />
+				<title>go-fastdfs</title>
+				<style>form { bargin } .form-line { display:block;height: 30px;margin:8px; } #stdUpload {background: #fafafa;border-radius: 10px;width: 745px; }</style>
+				<link href="https://transloadit.edgly.net/releases/uppy/v0.30.0/dist/uppy.min.css" rel="stylesheet"></head>
+			  
+			  <body>
+                <div>标准上传(强列建议使用这种方式)</div>
+				<div id="stdUpload">
+				  
+				  <form action="%s" method="post" enctype="multipart/form-data">
+					<span class="form-line">文件(file):
+					  <input type="file" id="file" name="file" /></span>
+					<span class="form-line">场景(scene):
+					  <input type="text" id="scene" name="scene" value="%s" /></span>
+					<span class="form-line">文件名(filename):
+					  <input type="text" id="filename" name="filename" value="" /></span>
+					<span class="form-line">输出(output):
+					  <input type="text" id="output" name="output" value="json2" title="json|text|json2" /></span>
+					<span class="form-line">自定义路径(path):
+					  <input type="text" id="path" name="path" value="" /></span>
+	              <span class="form-line">google认证码(code):
+					  <input type="text" id="code" name="code" value="" /></span>
+					 <span class="form-line">自定义认证(auth_token):
+					  <input type="text" id="auth_token" name="auth_token" value="" /></span>
+					<input type="submit" name="submit" value="upload" />
+                </form>
+				</div>
+                 <div>断点续传（如果文件很大时可以考虑）</div>
+				<div>
+				 
+				  <div id="drag-drop-area"></div>
+				  <script src="https://transloadit.edgly.net/releases/uppy/v0.30.0/dist/uppy.min.js"></script>
+				  <script>var uppy = Uppy.Core().use(Uppy.Dashboard, {
+					  inline: true,
+					  target: '#drag-drop-area'
+					}).use(Uppy.Tus, {
+					  endpoint: '%s'
+					})
+					uppy.on('complete', (result) => {
+					 // console.log(result) console.log('Upload complete! We’ve uploaded these files:', result.successful)
+					})
+					//uppy.setMeta({ auth_token: '9ee60e59-cb0f-4578-aaba-29b9fc2919ca',callback_url:'http://127.0.0.1/callback' ,filename:'自定义文件名','path':'自定义path',scene:'自定义场景' })//这里是传递上传的认证参数,callback_url参数中 id为文件的ID,info 文转的基本信息json
+					uppy.setMeta({ auth_token: '9ee60e59-cb0f-4578-aaba-29b9fc2919ca',callback_url:'http://127.0.0.1/callback'})//自定义参数与普通上传类似（虽然支持自定义，建议不要自定义，海量文件情况下，自定义很可能给自已给埋坑）
+                </script>
+				</div>
+			  </body>
+			</html>`
+		uppyFileName:=STATIC_DIR+"/uppy.html"
+		if s.util.IsExist(uppyFileName){
+			if data,err:=s.util.ReadBinFile(uppyFileName);err!=nil{
+				logrus.Errorf("ReadBinFile error!uppyFileName=%s;err=%+v;",uppyFileName,err)
+			}else {
+				uppy=string(data)
+			}
+		}else {
+			s.util.WriteFile(uppyFileName,uppy)
+		}
+
+	}else {
+		w.Write([]byte("web upload deny!"))
+	}
+}
+
+func init(){
+	flag.Parse()
+	if *v{
+		fmt.Sprintf("%s\n%s\n%s\n%s\n",VERSION,BUILD_TIME,GO_VERSION,GIT_VERSION)
+		os.Exit(0)
+	}
+	appDir,e1:=filepath.Abs(filepath.Dir(os.Args[0]))
+	curDir,e2:=filepath.Abs(".")
+
 
 }
 
-func (s *Server) CheckClusterStatus(){
 
-}
+
+
+
 
 
 
