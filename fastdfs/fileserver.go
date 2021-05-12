@@ -184,7 +184,7 @@ type Server struct{
 	lockMap *goutil.CommonMap
 	sceneMap *goutil.CommonMap
 	searchMap *goutil.CommonMap
-	curData string
+	curDate string
 	host string
 }
 
@@ -2026,7 +2026,7 @@ func (s *Server) GetMd5sMapByDate(date ,fileName string) (*goutil.CommonMap,erro
 	return result,nil
 }
 
-func (s *Server) GetMd5ByDate(date string,fileName string) (mapset.Set,error){
+func (s *Server) GetMd5sByDate(date string,fileName string) (mapset.Set,error){
 	var (
 		keyPrefix string
 		md5set mapset.Set
@@ -2976,14 +2976,172 @@ func (s *Server) ConsumerPostToPeer(){
 
 func (s *Server) ConsumerUpload(){
 	for i:=0;i<Config().UploadWorker;i++{
-		for{
-			wr:<-s.queueUpload
-			s.upload(*wr.w,wr.r)
-			s.rtMap.AddCountInt64(CONST_UPLOAD_COUNTER_KEY,wr.r.ContentLength)
-			
+		go func(){
+			for{
+				wr:=<-s.queueUpload
+				s.upload(*wr.w,wr.r)
+				s.rtMap.AddCountInt64(CONST_UPLOAD_COUNTER_KEY,wr.r.ContentLength)
+
+				if v,ok:=s.rtMap.GetValue(CONST_UPLOAD_COUNTER_KEY);ok{
+					if v.(int64)>(1<<30){
+						var _v int64=0
+						s.rtMap.Put(CONST_UPLOAD_COUNTER_KEY,_v)
+						debug.FreeOSMemory()
+					}
+				}
+				wr.done<-true
+			}
+		}()
+	}
+}
+
+
+func (s *Server) updateInAutoRepairFunc(peer string,dateStat StatDateFileInfo){
+	//远程拉来数据;
+	req:=httplib.Get(fmt.Sprintf("%s%s?date=%s&force=%s",peer,s.getRequestURI("sync"),dateStat.Date,"1"))
+	req.SetTimeout(time.Second*5,time.Second*5)
+
+	if _,err:=req.String();err!=nil{
+		logrus.Errorf("request error!err=%+v",err)
+	}
+	logrus.Infof(fmt.Sprintf("sync file from %s date %s",peer,dateStat.Date))
+}
+
+func (s *Server) autoRepairFunc(forceRepair bool){
+	var(
+		dateStats []StatDateFileInfo
+		err error
+		countKey,md5s string
+		localSet,remoteSet,allSet,tmpSet mapset.Set
+		fileInfo *FileInfo
+	)
+	defer func() {
+		if re := recover(); re != nil {
+			buffer := debug.Stack()
+			log.Error("autoRepairFunc")
+			log.Error(re)
+			log.Error(string(buffer))
+		}
+	}()
+
+	for _,peer:=range Config().Peers{
+		req:=httplib.Post(fmt.Sprintf("%s%s",peer,s.getRequestURI("stat")))
+		req.Param("inner","1")
+		req.SetTimeout(time.Second*5,time.Second*15)
+		if err=req.ToJSON(&dateStats);err!=nil{
+			logrus.Errorf("req error!err=%+v",err)
+			continue
+		}
+
+		for _,dateStat:=range dateStats{
+			if dateStat.Date=="all"{
+				continue
+			}
+
+			countKey=dateStat.Date+"_"+CONST_STAT_FILE_COUNT_KEY
+			if v,ok:=s.statMap.GetValue(countKey);ok{
+				switch v.(type) {
+				case int64:
+					if v.(int64)==dateStat.FileCount||forceRepair{
+						//不相等,找差异;
+						req:=httplib.Post(fmt.Sprintf("%s%s",peer,s.getRequestURI("get_md5s_by_date")))
+						req.SetTimeout(time.Second*15,time.Second*60)
+						req.Param("date",dateStat.Date)
+						if md5s,err=req.String();err!=nil{
+							continue
+						}
+						if localSet,err=s.GetMd5sByDate(dateStat.Date,CONST_FILE_Md5_FILE_NAME);err!=nil{
+							logrus.Errorf("GetMd5sMapByDate error!date=%s;err=%+v;",dateStat.Date,err)
+							continue
+						}
+						remoteSet=s.util.StrToMapSet(md5s,",")
+						allSet=localSet.Union(remoteSet)
+						md5s=s.util.MapSetToStr(allSet.Difference(localSet),",")
+
+						req=httplib.Post(fmt.Sprintf("%s%s",peer,s.getRequestURI("receive_md5s")))
+						req.SetTimeout(time.Second*15,time.Second*60)
+						req.Param("md5s",md5s)
+						req.String()
+						tmpSet=allSet.Difference(remoteSet)
+						for v:=range tmpSet.Iter(){
+							if v!=nil{
+							   if fileInfo,err=s.GetFileInfoFromLevelDB(v.(string));err!=nil{
+							   	logrus.Errorf("GetFileInfoFromLevelDB error!v=%+v;err=%+v",v,err)
+							   	continue
+							   }
+							   s.AppendToQueue(fileInfo)
+							}
+						}//for
+					}
+				}
+			}else {
+				s.updateInAutoRepairFunc(peer,dateStat)
+			}
+		}//for
+	}//for
+}
+
+
+func (s *Server) AutoRepair(forceRepair bool){
+	if s.lockMap.IsLock("AutoRepair"){
+		logrus.Warnf("AutoRepair has been locked!")
+		return
+	}
+	s.lockMap.LockKey("AutoRepair")
+	defer s.lockMap.UnLockKey("AutoRepair")
+	//AutoRepairFunc
+	s.autoRepairFunc(forceRepair)
+}
+
+func (s *Server) CleanLogLevelDBByDate(date string,fileName string){
+	defer func() {
+		if re := recover(); re != nil {
+			buffer := debug.Stack()
+			log.Error("autoRepairFunc")
+			log.Error(re)
+			log.Error(string(buffer))
+		}
+	}()
+	var (
+		err error
+		keyPrefix string
+		keys mapset.Set
+	)
+	keys=mapset.NewSet()
+	keyPrefix=fmt.Sprintf("%s_%s_",date,fileName)
+	it:=server.logDB.NewIterator(util.BytesPrefix([]byte(keyPrefix)),nil)
+	defer it.Release()
+	for it.Next(){
+		keys.Add(string(it.Value()))
+	}
+	for key:=range keys.Iter(){
+		if err=s.RemoveKeyFromLevelDB(key.(string),s.logDB);err!=nil{
+			logrus.Errorf("RemoveKeyFromLevelDB error!err=%+v",err)
 		}
 	}
 }
+
+func (s *Server) CleanAndBackup(){
+	go func(){
+		for{
+			time.Sleep(time.Minute*2)
+			var (
+				fileNames []string
+				yesterday string
+			)
+			if s.curDate!=s.util.GetToDay(){
+				fileNames=[]string{CONST_Md5_QUEUE_FILE_NAME,CONST_Md5_ERROR_FILE_NAME,CONST_REMOVE_Md5_FILE_NAME}
+				yesterday=s.util.GetDayFromTimeStamp(time.Now().AddDate(0,0,-1).Unix())
+				for _,fileName:=range fileNames{
+					s.CleanLogLevelDBByDate(yesterday,FileName)
+				}
+				s.BackUpMetaDataByDate(yesterday)
+				s.curDate=s.util.GetToDay()
+			}
+		}
+	}()
+}
+
 
 
 
