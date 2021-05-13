@@ -3943,7 +3943,52 @@ func (s *Server) notify(handler *tusd.Handler){
 	for{
 		select{
 		case info:=<-handler.CompleteUploads:
+			logrus.Infof("CompleteUploads!info=%+v",info)
+			name:=""
+			pathCustom:=""
+			scene:=Config().DefaultScene
+			if v,ok:=info.MetaData["filename"];ok{
+				name=v
+			}
+			if v,ok:=info.MetaData["scene"];ok{
+				scene=v
+			}
+			if v,ok:=info.MetaData["path"];ok{
+				pathCustom=v
+			}
+			md5sum:=""
+			oldFullPath:=BIG_DIR+"/"+info.ID+".bin"
+			infoFullPath=BIG_DIR+"/"+info.ID+".info"
 
+			if md5sum,err:=s.util.GetFileSumByName(oldFullPath,Config().FileSumArithmetic);err!=nil{
+				logrus.Error(err)
+				continue
+			}
+			ext:=path.Ext(name)
+			fileName:=md5sum+ext
+			if name!=""{
+				fileName=name
+			}
+			if Config().RenameFile{
+				fileName=md5sum+ext
+			}
+			timeStamp:=time.Now().Unix()
+			fpath:=time.Now().Format("/20060102/15/04")
+			if pathCustom!=""{
+				fpath="/"+strings.Replace(pathCustom,".","",-1)+"/"
+			}
+			newFullPath:=STORE_DIR+"/"+scene+fpath+Config().PeerId+"/"+fileName
+			if pathCustom!=""{
+				newFullPath=STORE_DIR+"/"+scene+fpath+fileName
+			}
+			if fi,err:=s.GetFileInfoFromLevelDB(md5sum);err!=nil{
+				logrus.Error(err)
+			}else {
+				tpath:=s.GetFilePathByInfo(fi,true)
+
+			}
+
+			break
 		}
 	}//for
 }
