@@ -50,6 +50,9 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/sjqzhang/goutil"
 	log "github.com/sjqzhang/seelog"
+	"github.com/sjqzhang/tusd"
+	"github.com/sjqzhang/tusd/filestore"
+
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -3766,9 +3769,175 @@ func init(){
 	}
 	appDir,e1:=filepath.Abs(filepath.Dir(os.Args[0]))
 	curDir,e2:=filepath.Abs(".")
+	if e1==nil&&e2==nil&&appDir!=curDir&&!strings.Contains(appDir,"go-build"){
+		msg:=fmt.Sprintf("please change directory to '%s' start fielserver\n",appDir)
+		msg+=fmt.Sprintf("请切换到 '%s' 目录启动 fileserver ",appDir)
+		logrus.Warnf(msg)
+		os.Exit(1)
+	}
+	DOCKER_DIR=os.Getenv("GO_FASTDFS_DIR")
+	if DOCKER_DIR!="" && !strings.HasPrefix(DOCKER_DIR,"/"){
+		DOCKER_DIR+="/"
+	}
+	STORE_DIR=DOCKER_DIR+STORE_DIR_NAME
+	CONF_DIR=DOCKER_DIR+CONF_DIR_NAME
+	DATA_DIR=DOCKER_DIR+DATA_DIR_NAME
+	LOG_DIR=DOCKER_DIR+LOG_DIR_NAME
+	STATIC_DIR=DOCKER_DIR+STORE_DIR_NAME
+	LARGE_DIR_NAME="haystack"
+	LARGE_DIR=STORE_DIR+"/haystack"
+	CONST_LEVELDB_FILE_NAME=DATA_DIR+"/fileserver.db"
+	CONST_LOG_LEVELDB_FILE_NAME=DATA_DIR+"/log.db"
+	CONST_STAT_FILE_NAME=DATA_DIR+"/stat.json"
+	CONST_CONF_FILE_NAME=CONF_DIR+"/cfg.json"
+	CONST_SERVER_CRT_FILE_NAME=CONF_DIR+"/server.crt"
+	CONST_SERVER_KEY_FILE_NAME=CONF_DIR+"/server.key"
+	CONST_SEARCH_FILE_NAME=DATA_DIR+"/search.txt"
+	FOLDERS=[]string{DATA_DIR,STORE_DIR,CONF_DIR,STATIC_DIR}
+	logAccessConfigStr=strings.Replace(logAccessConfigStr,"{DOCKER_DIR}",DOCKER_DIR,-1)
+	logConfigStr=strings.Replace(logConfigStr,"{DOCKER_DIR}",DOCKER_DIR,-1)
+
+	for _,folder:=range FOLDERS{
+		os.MkdirAll(folder,0775)
+	}
+	server=NewServer()
+
+	peerId:=os.Getenv("GO_FASTDFS_PEER_ID")
+	if peerId==""{
+		peerId=fmt.Sprintf("%d",server.util.RandInt(0,9))
+	}
+	if !server.util.FileExists(CONST_CONF_FILE_NAME){
+		ip:=os.Getenv("GO_FASTDFS_IP")
+		if ip==""{
+			ip=server.util.GetPulicIP()
+		}
+		peer:="http://"+ip+";3600"
+		peers:=os.Getenv("GO_FASTDFS_PEERS")
+		if peers==""{
+			peers=peer
+		}
+		cfg:=fmt.Sprintf(cfgJson,peerId,peer,peers)
+		server.util.WriteFile(CONST_CONF_FILE_NAME,cfg)
+	}
+
+	if logger,err:=log.LoggerFromConfigAsBytes([]byte(logConfigStr));err!=nil{
+		panic(err)
+	}else {
+		log.ReplaceLogger(logger)
+	}
+
+	if _logacc,err:=log.LoggerFromConfigAsBytes([]byte(logAccessConfigStr));err==nil{
+		logacc=_logacc
+		logrus.Infof("success init log access!")
+	}else {
+		logrus.Errorf(err.Error())
+	}
+	ParseConfig(CONST_CONF_FILE_NAME)
+	if ips,_:=server.util.GetAllIpsV4();len(ips)>0{
+		_ip:=server.util.Match("\\d+\\.\\d+\\.\\d+\\.\\d+",Config().Host)
+		if len(_ip)>0&&!server.util.Contains(_ip[0],ips){
+			msg:=fmt.Sprintf("host config is error,must in local ips:%s",strings.Join(ips,","))
+			logrus.Warnf(msg)
+		}
+	}
+	if Config().QueueSize==0{
+		Config().QueueSize=CONST_QUEUE_SIZE
+	}
+	if Config().PeerId==""{
+		Config().PeerId=peerId
+	}
+	if Config().SupportGroupManage{
+		staticHandler=http.StripPrefix("/"+Config().Group+"/",http.FileServer(http.Dir(STORE_DIR)))
+	}else {
+		staticHandler=http.StripPrefix("/",http.FileServer(http.Dir(STORE_DIR)))
+	}
+	//todo
+	server.initComponent(false)
+
+}
+
+
+type hookDataStore struct{
+	tusd.DataStore
+}
+
+type httpError struct{
+	error
+	statusCode int
+}
+
+func (err *httpError) StatusCode() int{
+	return err.statusCode
+}
+
+func (err *httpError) Body() []byte{
+	return []byte(err.Error())
+}
+
+func (store *hookDataStore) NewUpload(info *tusd.FileInfo) (id string,err error){
+	var jsonResult JsonResult
+	if Config().AuthUrl!=""{
+		if auth_token,ok:=info.MetaData["auth_token"];!ok{
+			msg := "token auth fail,auth_token is not in http header Upload-Metadata," +
+				"in uppy uppy.setMeta({ auth_token: '9ee60e59-cb0f-4578-aaba-29b9fc2919ca' })"
+			str:=fmt.Sprintf("msg=%s;current header:%+v",msg,info.MetaData)
+			logrus.Error(str)
+			return "",httpError{
+				error:errors.New(str),
+				statusCode: 401,
+			}
+		}else {
+			req:=httplib.Post(Config().AuthUrl)
+			req.Param("auth_token",auth_token)
+			req.SetTimeout(time.Second*5,time.Second*10)
+			content,err:=req.String()
+			
+			if err!=nil{
+				logrus.Error(err)
+				return "",err
+			}
+			content=strings.TrimSpace(content)
+
+			if strings.HasPrefix(content,"{")&&strings.HasSuffix(content,"}"){
+				if err=json.Unmarshal([]byte(content),&jsonResult);err!=nil{
+					logrus.Error(err)
+					return "",httpError{
+						error:errors.New(err.Error()+";\n"+content),
+						statusCode: 401,
+					}
+				}
+				if jsonResult.Data!="ok"{
+					return "",httpError{
+						error:errors.New(content),
+						statusCode: 401,
+					}
+				}
+				
+			}else {
+				if strings.TrimSpace(content)!="ok"{
+					return "",httpError{
+						error:errors.New(content),
+						statusCode: 401,
+					}
+				}
+			}
+		}
+	}//if authUrl;
+	return store.DataStore.NewUpload(*info)
+}
+
+func (s *Server) initTus(){
+	var(
+		err error
+		fileLog *os.File
+		bigDir string
+	)
 
 
 }
+
+
+
 
 
 
