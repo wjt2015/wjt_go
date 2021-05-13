@@ -24,6 +24,7 @@ import (
 	"image/png"
 	"io"
 	"io/ioutil"
+	slog "log"
 	random "math/rand"
 	"mime/multipart"
 	"net"
@@ -3926,15 +3927,139 @@ func (store *hookDataStore) NewUpload(info *tusd.FileInfo) (id string,err error)
 	return store.DataStore.NewUpload(*info)
 }
 
+func (s *Server) uploadCompleteCallBack(info *tusd.FileInfo,fileInfo *FileInfo){
+	if callback_url,ok:=info.MetaData["callback_url"];ok{
+		req:=httplib.Post(callback_url)
+		req.SetTimeout(time.Second*10,time.Second*10)
+		req.Param("info",server.util.JsonEncodePretty(fileInfo))
+		req.Param("id",info.ID)
+		if _,err:=req.String();err!=nil{
+			logrus.Error(err)
+		}
+	}
+}
+
+func (s *Server) notify(handler *tusd.Handler){
+	for{
+		select{
+		case info:=<-handler.CompleteUploads:
+
+		}
+	}//for
+}
+
+
 func (s *Server) initTus(){
 	var(
 		err error
 		fileLog *os.File
 		bigDir string
 	)
+	BIG_DIR:=STORE_DIR+"/_big/"+Config().PeerId
+	os.MkdirAll(BIG_DIR,0775)
+	os.MkdirAll(LOG_DIR,0775)
+	store:=filestore.FileStore{
+		Path:BIG_DIR,
+	}
+	if fileLog,err=os.OpenFile(LOG_DIR+"/tusd.log",os.O_CREATE|os.O_RDWR,0666);err!=nil{
+		logrus.Error(err)
+		panic("initTus error!")
+	}
+	go func(){
+		for{
+			if fi,err:=fileLog.Stat();err!=nil{
+				logrus.Error(err)
+			}else {
+				if fi.Size()>(500<<20){
+					//500M
+					s.util.CopyFile(LOG_DIR+"/tusd.log",LOG_DIR+"/tusd.log.2")
+					fileLog.Seek(0,0)
+					fileLog.Truncate(0)
+					fileLog.Seek(0,2)
+				}
+			}
+		    time.Sleep(time.Second*30)
+		}//for
+	}()
+
+	l:=slog.New(fileLog,"[tusd] ",slog.LstdFlags)
+	bigDir=CONST_BIG_UPLOAD_PATH_SUFFIX
+
+	if Config().SupportGroupManage{
+		bigDir=fmt.Sprintf("/%s%s",Config().Group,CONST_BIG_UPLOAD_PATH_SUFFIX)
+	}
+	composer:=tusd.NewStoreComposer()
+	//support raw tus upload and download;
+	store.GetReaderExt=func(id string) (io.Reader,error){
+		var(
+			offset int64
+			err error
+			length int
+			buffer []byte
+			fi *FileInfo
+			fn string
+		)
+		if fi,err=s.GetFileInfoFromLevelDB(id);err!=nil{
+			logrus.Error(err)
+			return nil, err
+		}else {
+			if Config().AuthUrl!=""{
+				fileResult:=s.util.JsonEncodePretty(s.BuildFileResult(fi,nil))
+				bufferReader:=bytes.NewBuffer([]byte(fileResult))
+				return bufferReader,nil
+			}
+			fn=fi.Name
+			if fi.ReName!=""{
+				fn=fi.ReName
+			}
+			fp:=DOCKER_DIR+fi.Path+"/"+fn
+
+			if s.util.FileExists(fp){
+				logrus.Infof("download:%s",fp)
+				return os.Open(fp)
+			}
+			if ps:=strings.Split(fp,",");len(ps)>2&&s.util.FileExists(ps[0]){
+				if length,err=strconv.Atoi(ps[2]);err!=nil{
+					return nil, err
+				}
+
+				if offset,err=strconv.ParseInt(ps[1],10,64);err!=nil{
+					return nil, err
+				}
+
+				if buffer,err=s.util.ReadFileByOffSet(ps[0],offset,length);err!=nil{
+					return nil, err
+				}
+				if buffer[0]=='1'{
+					bufferReader:=bytes.NewBuffer(buffer[1:])
+					return bufferReader,nil
+				}else {
+					msg:="data no sync"
+					logrus.Error(msg)
+					return nil,errors.New(msg)
+				}
+			}
+			return nil, errors.New(fmt.Sprintf("%s not found!",fp))
+		}
+	}
+	store.UseIn(composer)
+
+	SetupPreHooks:=func(composer *tusd.StoreComposer){
+		composer.UseCore(composer.Core)
+	}
+	SetupPreHooks(composer)
+	handler,err:=tusd.NewHandler(tusd.Config{
+		Logger:l,
+		BasePath: bigDir,
+		StoreComposer: composer,
+		NotifyCompleteUploads: true,
+		RespectForwardedHeaders: true,
+	})
 
 
 }
+
+
 
 
 
