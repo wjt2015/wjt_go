@@ -3985,9 +3985,41 @@ func (s *Server) notify(handler *tusd.Handler){
 				logrus.Error(err)
 			}else {
 				tpath:=s.GetFilePathByInfo(fi,true)
-
+				if fi.Md5!=""&&s.util.FileExists(tpath){
+					if fileInfo,err:=s.SaveFileInfoToLevelDB(info.ID,fi,s.ldb);err!=nil{
+						logrus.Error(err)
+					}
+					str:=fmt.Sprintf("file is found md5:%s;remove file:%s,%s;",fi.Md5,oldFullPath,infoFullPath)
+					logrus.Infof(str)
+					os.Remove(oldFullPath)
+					os.Remove(infoFullPath)
+					go s.uploadCompleteCallBack(info,fileInfo)
+					continue
+				}
+			}
+			fpath2:=STORE_DIR_NAME+"/"+Config().DefaultScene+fpath+Config().PeerId
+			if pathCustom!=""{
+				fpath2=STORE_DIR_NAME+"/"+Config().DefaultScene+fpath
+				fpath2=strings.TrimRight(fpath2,"/")
 			}
 
+			os.MkdirAll(DOCKER_DIR+fpath2,0775)
+			fileInfo:=&FileInfo{
+				Name:name,
+				Path:fpath2,
+				ReName: fileName,
+				Size:info.Size,
+				TimeStamp: timeStamp,
+				Md5:md5sum,
+				Peers: []string{s.host},
+				OffSet: -1,
+			}
+			if err:=os.Rename(oldFullPath,newFullPath);err!=nil{
+				logrus.Error(err)
+			}
+			s.SaveFileMd5Log(fileInfo,CONST_FILE_Md5_FILE_NAME)
+			go s.postFileToPeer(fileInfo)
+			go s.uploadCompleteCallBack(info,fileInfo)
 			break
 		}
 	}//for
