@@ -3939,6 +3939,8 @@ func (s *Server) uploadCompleteCallBack(info *tusd.FileInfo,fileInfo *FileInfo){
 	}
 }
 
+var BIG_DIR string
+
 func (s *Server) notify(handler *tusd.Handler){
 	for{
 		select{
@@ -3956,11 +3958,12 @@ func (s *Server) notify(handler *tusd.Handler){
 			if v,ok:=info.MetaData["path"];ok{
 				pathCustom=v
 			}
-			md5sum:=""
 			oldFullPath:=BIG_DIR+"/"+info.ID+".bin"
-			infoFullPath=BIG_DIR+"/"+info.ID+".info"
+			infoFullPath:=BIG_DIR+"/"+info.ID+".info"
 
-			if md5sum,err:=s.util.GetFileSumByName(oldFullPath,Config().FileSumArithmetic);err!=nil{
+			md5sum:=""
+			var err error
+			if md5sum,err=s.util.GetFileSumByName(oldFullPath,Config().FileSumArithmetic);err!=nil{
 				logrus.Error(err)
 				continue
 			}
@@ -3985,15 +3988,16 @@ func (s *Server) notify(handler *tusd.Handler){
 				logrus.Error(err)
 			}else {
 				tpath:=s.GetFilePathByInfo(fi,true)
+				var fileInfo *FileInfo
 				if fi.Md5!=""&&s.util.FileExists(tpath){
-					if fileInfo,err:=s.SaveFileInfoToLevelDB(info.ID,fi,s.ldb);err!=nil{
+					if fileInfo,err=s.SaveFileInfoToLevelDB(info.ID,fi,s.ldb);err!=nil{
 						logrus.Error(err)
 					}
 					str:=fmt.Sprintf("file is found md5:%s;remove file:%s,%s;",fi.Md5,oldFullPath,infoFullPath)
 					logrus.Infof(str)
 					os.Remove(oldFullPath)
 					os.Remove(infoFullPath)
-					go s.uploadCompleteCallBack(info,fileInfo)
+					go s.uploadCompleteCallBack(&info,fileInfo)
 					continue
 				}
 			}
@@ -4014,15 +4018,17 @@ func (s *Server) notify(handler *tusd.Handler){
 				Peers: []string{s.host},
 				OffSet: -1,
 			}
+			os.Remove(infoFullPath)
 			if err:=os.Rename(oldFullPath,newFullPath);err!=nil{
 				logrus.Error(err)
+				continue
 			}
 			s.SaveFileMd5Log(fileInfo,CONST_FILE_Md5_FILE_NAME)
 			go s.postFileToPeer(fileInfo)
-			go s.uploadCompleteCallBack(info,fileInfo)
+			go s.uploadCompleteCallBack(&info,fileInfo)
 			break
-		}
-	}//for
+		}//select;
+	}//for;
 }
 
 
@@ -4032,7 +4038,8 @@ func (s *Server) initTus(){
 		fileLog *os.File
 		bigDir string
 	)
-	BIG_DIR:=STORE_DIR+"/_big/"+Config().PeerId
+	BIG_DIR=STORE_DIR+"/_big/"+Config().PeerId
+
 	os.MkdirAll(BIG_DIR,0775)
 	os.MkdirAll(LOG_DIR,0775)
 	store:=filestore.FileStore{
@@ -4132,9 +4139,89 @@ func (s *Server) initTus(){
 		NotifyCompleteUploads: true,
 		RespectForwardedHeaders: true,
 	})
+	go s.notify(handler)
+	http.Handle(bigDir,http.StripPrefix(bigDir,handler))
+}
+
+func (s *Server) FormatStatInfo(){
+	var(
+		data []byte
+		err error
+		count int64
+		stat map[string]interface{}
+	)
+	if s.util.FileExists(CONST_STAT_FILE_NAME){
+		if data,err=s.util.ReadBinFile(CONST_STAT_FILE_NAME);err!=nil{
+			logrus.Error(err)
+		}else {
+			if err=json.Unmarshal(data,&stat);err!=nil{
+				logrus.Error(err)
+			}else {
+				for k,v:=range stat{
+					switch v.(type) {
+					case float64:
+						vv:=strings.Split(fmt.Sprintf("%f",v),".")[0]
+						if count,err=strconv.ParseInt(vv,10,64);err!=nil{
+							logrus.Error(err)
+						}else {
+							s.statMap.Put(k,count)
+						}
+						break
+					default:
+						s.statMap.Put(k,v)
+					}
+				}
+			}
+		}
+
+	}else {
+		s.RepairStatByDate(s.util.GetToDay())
+	}
+}
+
+func (s *Server) initComponent(isReload bool){
+	ip:=""
+	if ip=os.Getenv("GO_FASTDFS_IP");ip==""{
+		ip=s.util.GetPulicIP()
+	}
+	if Config().Host==""{
+		if len(strings.Split(Config().Addr,":"))==2{
+			server.host=fmt.Sprintf("http://%s:%s",ip,strings.Split(Config().Addr,":")[1])
+			Config().Host=server.host
+		}
+	}else {
+		if strings.HasPrefix(Config().Addr,"http"){
+			server.host=Config().Host
+		}else {
+			server.host="http://"+Config().Host
+		}
+	}
+
+	ex,_:=regexp.Compile("\\d+\\.\\d+\\.\\d+\\.\\d+")
+	var peers []string
+	for _,peer:=range Config().Peers{
+		if s.util.Contains(ip,ex.FindAllString(peer,-1))||s.util.Contains("127.0.0.1",ex.FindAllString(peer,-1)){
+			continue
+		}
+		if strings.HasPrefix(peer,"http"){
+			peers=append(peers,peer)
+		}else {
+			peers=append(peers,"http://"+peer)
+		}
+	}
+	Config().Peers=peers
+	if !isReload{
+		s.FormatStatInfo()
+		if Config().EnableTus{
+			s.initTus()
+		}
+	}
 
 
 }
+
+
+
 
 
 
