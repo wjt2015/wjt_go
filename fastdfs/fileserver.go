@@ -4216,8 +4216,28 @@ func (s *Server) initComponent(isReload bool){
 			s.initTus()
 		}
 	}
-
-
+	for _,s:=range Config().Scenes{
+		kv:=strings.Split(s,":")
+		if len(kv)==2{
+			s.sceneMap.Put(kv[0],kv[1])
+		}
+	}
+    if Config().ReadTimeout==0{
+    	Config().ReadTimeout=60*10
+	}
+	if Config().WriteTimeout==0{
+		Config().WriteTimeout=60*10
+	}
+	if Config().UploadWorker==0{
+		Config().UploadWorker=runtime.NumCPU()+4
+		if runtime.NumCPU()<4{
+			Config().UploadWorker=8
+		}
+	}
+	if Config().UploadQueueSize==0{
+		Config().UploadQueueSize=200
+	}
+	
 }
 
 
