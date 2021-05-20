@@ -4237,8 +4237,50 @@ func (s *Server) initComponent(isReload bool){
 	if Config().UploadQueueSize==0{
 		Config().UploadQueueSize=200
 	}
-	
+	if Config().RetryCount==0{
+		Config().RetryCount=3
+	}
+	if Config().SyncDelay==0{
+		Config().SyncDelay=60
+	}
+	if Config().WatchChanSize==0{
+		Config().WatchChanSize=100000
+	}
 }
+
+type HttpHandler struct{
+
+}
+
+func (HttpHandler) ServeHTTP(resp http.ResponseWriter,req *http.Request){
+	status_code:="200"
+	defer func(t time.Time){
+		logrus.Infof("[Access] %s | %s | %s | %s | %s | %s",
+			time.Now().Format("2006/01/02 - 15:04:05"),
+			time.Since(t).String(),
+			server.util.GetClientIp(req),
+			req.Method, status_code,req.RequestURI)
+	}(time.Now())
+	defer func() {
+		if err := recover(); err != nil {
+			status_code = "500"
+			res.WriteHeader(500)
+			print(err)
+			buff := debug.Stack()
+			log.Error(err)
+			log.Error(string(buff))
+		}
+	}()
+
+	if Config().EnableCrossOrigin{
+		server.CrossOrigin(resp,req)
+	}
+	http.DefaultServeMux.ServeHTTP(w,r)
+}
+
+
+
+
 
 
 
