@@ -4278,6 +4278,57 @@ func (HttpHandler) ServeHTTP(resp http.ResponseWriter,req *http.Request){
 	http.DefaultServeMux.ServeHTTP(w,r)
 }
 
+func (s *Server) Start(){
+	go func(){
+		s.CheckFileAndSendToPeer(s.util.GetToDay(),CONST_Md5_ERROR_FILE_NAME,false)
+		time.Sleep(time.Second*time.Duration(Config().RefreshInterval))
+	}()
+
+	go s.CleanAndBackup()
+	go s.CheckClusterStatus()
+	go s.LoadQueueSendToPeer()
+	go s.ConsumerPostToPeer()
+	go s.ConsumerLog()
+	go s.ConsumerDownload()
+	go s.ConsumerUpload()
+	go s.RemoveDownloading()
+
+	if Config().EnableFsnotify{
+		go s.WatchFilesChange()
+	}
+
+	if Config().EnableMigrate{
+		go s.RepairFileInfoFromFile()
+	}
+	if Config().AutoRepair{
+		go func(){
+			for{
+				time.Sleep(time.Minute*3)
+				s.AutoRepair(false)
+				time.Sleep(time.Minute*60)
+			}
+		}()
+	}
+	groupRoute:=""
+	if Config().SupportGroupManage{
+		groupRoute="/"+Config().Group
+	}
+	go func(){
+		for{
+			time.Sleep(time.Minute*1)
+			debug.FreeOSMemory()
+		}
+	}()
+	uploadPage:="upload.html"
+	if groupRoute==""{
+		http.HandleFunc(fmt.Sprintf("%s","/"),s.Download)
+		http.HandleFunc(fmt.Sprintf("/%s",uploadPage,s.Index))
+	}else {
+		http.HandleFunc()
+	}
+
+
+}
 
 
 
