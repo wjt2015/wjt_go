@@ -4332,6 +4332,7 @@ func (s *Server) Start(){
 	http.HandleFunc(fmt.Sprintf("%s/check_file_exist",groupRoute),s.CheckFileExist)
 	http.HandleFunc(fmt.Sprintf("%s/upload",groupRoute),s.Upload)
 	http.HandleFunc(fmt.Sprintf("%s/delete",groupRoute),s.RemoveFile)
+	http.HandleFunc(fmt.Sprintf("%s/get_file_info",groupRoute),s.GetFileInfo)
 	
 
 }
