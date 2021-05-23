@@ -4275,7 +4275,7 @@ func (HttpHandler) ServeHTTP(resp http.ResponseWriter,req *http.Request){
 	if Config().EnableCrossOrigin{
 		server.CrossOrigin(resp,req)
 	}
-	http.DefaultServeMux.ServeHTTP(w,r)
+	http.DefaultServeMux.ServeHTTP(resp,req)
 }
 
 func (s *Server) Start(){
@@ -4322,11 +4322,17 @@ func (s *Server) Start(){
 	uploadPage:="upload.html"
 	if groupRoute==""{
 		http.HandleFunc(fmt.Sprintf("%s","/"),s.Download)
-		http.HandleFunc(fmt.Sprintf("/%s",uploadPage,s.Index))
+		http.HandleFunc(fmt.Sprintf("/%s",uploadPage),s.Index)
 	}else {
-		http.HandleFunc()
+		http.HandleFunc("/",s.Download)
+		http.HandleFunc(groupRoute,s.Download)
+		http.HandleFunc(fmt.Sprintf("%s/%s",groupRoute,uploadPage),s.Index)
 	}
-
+	http.HandleFunc(fmt.Sprintf("%s/check_files_exist",groupRoute),s.CheckFileExist)
+	http.HandleFunc(fmt.Sprintf("%s/check_file_exist",groupRoute),s.CheckFileExist)
+	http.HandleFunc(fmt.Sprintf("%s/upload",groupRoute),s.Upload)
+	http.HandleFunc(fmt.Sprintf("%s/delete",groupRoute),s.RemoveFile)
+	
 
 }
 
