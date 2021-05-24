@@ -4333,9 +4333,56 @@ func (s *Server) Start(){
 	http.HandleFunc(fmt.Sprintf("%s/upload",groupRoute),s.Upload)
 	http.HandleFunc(fmt.Sprintf("%s/delete",groupRoute),s.RemoveFile)
 	http.HandleFunc(fmt.Sprintf("%s/get_file_info",groupRoute),s.GetFileInfo)
-	
+	http.HandleFunc(fmt.Sprintf("%s/sync",groupRoute),s.Sync)
+	http.HandleFunc(fmt.Sprintf("%s/stat",groupRoute),s.Stat)
+	http.HandleFunc(fmt.Sprintf("%s/repair_stat",groupRoute),s.RepairStatWeb)
+	http.HandleFunc(fmt.Sprintf("%s/status",groupRoute),s.Status)
+	http.HandleFunc(fmt.Sprintf("%s/repair",groupRoute),s.Repair)
+	http.HandleFunc(fmt.Sprintf("%s/report",groupRoute),s.Report)
+	http.HandleFunc(fmt.Sprintf("%s/backup",groupRoute),s.Backup)
+	http.HandleFunc(fmt.Sprintf("%s/search",groupRoute),s.Search)
+	http.HandleFunc(fmt.Sprintf("%s/list_dir",groupRoute),s.ListDir)
+	http.HandleFunc(fmt.Sprintf("%s/remove_empty_dir",groupRoute),s.RemoveEmptyDir)
+	http.HandleFunc(fmt.Sprintf("%s/repair_fileinfo",groupRoute),s.RepairFileInfo)
+	http.HandleFunc(fmt.Sprintf("%s/reload",groupRoute),s.Reload)
+	http.HandleFunc(fmt.Sprintf("%s/syncfile_info",groupRoute),s.SyncFileInfo)
+	http.HandleFunc(fmt.Sprintf("%s/get_md5s_by_date",groupRoute),s.GetMd5sForWeb)
+	http.HandleFunc(fmt.Sprintf("%s/receive_md5s",groupRoute),s.ReceiveMd5s)
+	http.HandleFunc(fmt.Sprintf("%s/gen_google_secret",groupRoute),s.GenGoogleSecret)
+	http.HandleFunc(fmt.Sprintf("%s/gen_google_code",groupRoute),s.GenGoogleCode)
+	//http.HandleFunc(fmt.Sprintf("%s/static/",groupRoute),http.StripPrefix(fmt.Sprintf("%s/static/",groupRoute),http.FileServer(http.Dir("./static"))))
+	//http.HandleFunc(fmt.Sprintf("%s/static/",groupRoute),http.FileServer)
+	http.HandleFunc("/"+Config().Group+"/",s.Download)
 
+	logrus.Infof("Listen on %+v",Config().Addr)
+
+	gloablConfig=Config()
+	logrus.Infof("globalConfig=%+v\n",GlobalConfig{})
+
+	if Config().EnableHttps{
+		err:=http.ListenAndServeTLS(Config().Addr,CONST_SERVER_CRT_FILE_NAME,CONST_SERVER_KEY_FILE_NAME,new(HttpHandler))
+		logrus.Errorf(err)
+	}else {
+		srv:=&http.Server{
+			Addr:Config().Addr,
+			Handler: new(HttpHandler),
+			ReadTimeout:time.Duration(Config().ReadTimeout)*time.Second,
+			ReadHeaderTimeout: time.Duration(Config().ReadHeaderTimeout)*time.Second,
+			WriteTimeout: time.Duration(Config().WriteTimeout)*time.Second,
+			IdleTimeout:time.Duration(Config().IdleTimeout)*time.Second,
+		}
+		logrus.Info("srv=%+v",srv)
+		if err:=srv.ListenAndServe();err!=nil{
+			logrus.Errorf("srv.ListenAndServe!err=%+v",err)
+		}
+	}
 }
+
+func main(){
+logrus.SetReportCaller(true)
+server.Start()
+}
+
 
 
 

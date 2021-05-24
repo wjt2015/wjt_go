@@ -26,4 +26,6 @@ require (
 	github.com/sjqzhang/tusd v0.0.0-20190220031306-a6a9d78ef54a
 	github.com/songtianyi/wechat-go v0.0.0-20201201042057-1b63788f9704
 	github.com/syndtr/goleveldb v1.0.0
+	github.com/tdewolff/parse/v2 v2.5.2
+	github.com/tebeka/selenium v0.9.9 // indirect
 )
