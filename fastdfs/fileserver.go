@@ -4264,7 +4264,7 @@ func (HttpHandler) ServeHTTP(resp http.ResponseWriter,req *http.Request){
 	defer func() {
 		if err := recover(); err != nil {
 			status_code = "500"
-			res.WriteHeader(500)
+			resp.WriteHeader(500)
 			print(err)
 			buff := debug.Stack()
 			log.Error(err)
