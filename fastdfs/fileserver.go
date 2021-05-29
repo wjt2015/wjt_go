@@ -7,7 +7,6 @@ https://gitee.com/linux2014/go-fastdfs_2
 import (
 	"bufio"
 	"bytes"
-	"crypto/md5"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,7 +17,6 @@ import (
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sirupsen/logrus"
 	"github.com/sjqzhang/googleAuthenticator"
-	"github.com/tdewolff/parse/v2/js"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -2899,7 +2897,7 @@ func (s *Server) RemoveDownloading(){
 	go func(){
 		for{
 			it:=s.ldb.NewIterator(util.BytesPrefix([]byte("downloading_")),nil)
-			for it.Next();{
+			for it.Next(){
 				key:=it.Key()
 				keys:=strings.Split(string(key),"_")
 				if len(keys)==3{
