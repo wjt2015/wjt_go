@@ -34,6 +34,8 @@ github.com/aymerick/raymond
 github.com/aymerick/raymond/ast
 github.com/aymerick/raymond/lexer
 github.com/aymerick/raymond/parser
+# github.com/blang/semver v3.5.1+incompatible
+github.com/blang/semver
 # github.com/bmizerany/pat v0.0.0-20170815010413-6226ea591a40
 github.com/bmizerany/pat
 # github.com/cheggaaa/pb v2.0.6+incompatible
@@ -249,6 +251,7 @@ github.com/tdewolff/minify/v2/json
 github.com/tdewolff/minify/v2/svg
 github.com/tdewolff/minify/v2/xml
 # github.com/tdewolff/parse/v2 v2.5.2
+## explicit
 github.com/tdewolff/parse/v2
 github.com/tdewolff/parse/v2/buffer
 github.com/tdewolff/parse/v2/css
@@ -257,6 +260,13 @@ github.com/tdewolff/parse/v2/js
 github.com/tdewolff/parse/v2/json
 github.com/tdewolff/parse/v2/strconv
 github.com/tdewolff/parse/v2/xml
+# github.com/tebeka/selenium v0.9.7
+## explicit
+github.com/tebeka/selenium
+github.com/tebeka/selenium/chrome
+github.com/tebeka/selenium/firefox
+github.com/tebeka/selenium/internal/zip
+github.com/tebeka/selenium/log
 # github.com/temoto/robotstxt v1.1.1
 github.com/temoto/robotstxt
 # github.com/valyala/bytebufferpool v1.0.0
