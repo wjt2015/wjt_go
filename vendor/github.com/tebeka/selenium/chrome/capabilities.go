@@ -17,11 +17,12 @@ import (
 	"github.com/tebeka/selenium/internal/zip"
 )
 
-// DeprecatedCapabilitiesKey and CapabilitiesKey are the key in the top-level
-// Capabilities map under which ChromeDriver expects the Chrome-specific
-// options to be set.
-const DeprecatedCapabilitiesKey = "chromeOptions"
+// CapabilitiesKey is the key in the top-level Capabilities map under which
+// ChromeDriver expects the Chrome-specific options to be set.
 const CapabilitiesKey = "goog:chromeOptions"
+
+// DeprecatedCapabilitiesKey is the legacy version of CapabilitiesKey.
+const DeprecatedCapabilitiesKey = "chromeOptions"
 
 // Capabilities defines the Chrome-specific desired capabilities when using
 // ChromeDriver. An instance of this struct can be stored in the Capabilities
@@ -37,7 +38,7 @@ type Capabilities struct {
 	// the ChromeDriver-supplied default flags. The strings included here should
 	// not include a preceding '--'.
 	ExcludeSwitches []string `json:"excludeSwitches,omitempty"`
-	// Extensions are the list of extentions to install at startup. The
+	// Extensions are the list of extensions to install at startup. The
 	// elements of this list should be the base-64, padded contents of a Chrome
 	// extension file (.crx). Use the AddExtension method to add a local file.
 	Extensions []string `json:"extensions,omitempty"`
