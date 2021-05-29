@@ -19,6 +19,18 @@ https://golangnote.com/topic/230.html
 下载selenium-server-standalone-xxx.jar;
 java -jar selenium-server-standalone-xxx.jar
 
+获取webdriver实例的代码如下:
+```
+	capabilities  := selenium.Capabilities{"browserName": "chrome"}
+	webDriver, err := selenium.NewRemote(capabilities, "")
+	if err!=nil{
+		logrus.Errorf("selenium.NewRemote error!err=%+v",err)
+		return
+	}
+	logrus.Infof("webDriver=%+v;err=%+v;",webDriver,err)
+	defer webDriver.Quit()
+```
+
 
 
 
