@@ -35,6 +35,10 @@ func main(){
 
 	capabilities  := selenium.Capabilities{"browserName": "chrome"}
 	webDriver, err := selenium.NewRemote(capabilities, "")
+	if err!=nil{
+		logrus.Errorf("selenium.NewRemote error!err=%+v",err)
+		return
+	}
 	logrus.Infof("webDriver=%+v;err=%+v;",webDriver,err)
 	defer webDriver.Quit()
 
@@ -42,7 +46,9 @@ func main(){
 
 }
 
-
+/**
+https://golangnote.com/topic/230.html
+ */
 func test2() {
 	port, err := pickUnusedPort()
 	logrus.Infof("port=", port)
