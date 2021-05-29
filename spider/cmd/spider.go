@@ -41,9 +41,8 @@ func main(){
 	}
 	logrus.Infof("webDriver=%+v;err=%+v;",webDriver,err)
 	defer webDriver.Quit()
-
-
-
+	webDriver.Get("https://baijiahao.baidu.com/s?id=1628782259102304673&wfr=spider&for=pc")
+	time.Sleep(100*time.Second)
 }
 
 /**
