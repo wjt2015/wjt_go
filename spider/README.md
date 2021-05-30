@@ -77,6 +77,31 @@ sudo yum install google-chrome-stable_current_x86_64.rpm
     w_b1, err := selenium.NewRemote(caps, fmt.Sprintf("http://localhost:%d/wd/hub", port))
 ```
 
+代码示例2  
+```
+	capabilities  := selenium.Capabilities{"browserName": "chrome"}
+	chromecaps:=chrome.Capabilities{
+		Args: []string{
+			//静默执行请求
+			"--headless", // 设置Chrome无头模式，在linux下运行，需要设置这个参数，否则会报错
+			"--no-sandbox",
+			"--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36", // 模拟user-agent，防反爬
+		},
+	}
+	capabilities.AddChrome(chromecaps)
+
+	webDriver, err := selenium.NewRemote(capabilities, "")
+	if err!=nil{
+		logrus.Errorf("selenium.NewRemote error!err=%+v",err)
+		return
+	}
+	logrus.Infof("webDriver=%+v;err=%+v;",webDriver,err)
+	defer webDriver.Quit()
+	webDriver.Get("https://baijiahao.baidu.com/s?id=1628782259102304673&wfr=spider&for=pc")
+	
+```
+
+
 
 
 ----
