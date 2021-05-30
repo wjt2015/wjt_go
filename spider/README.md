@@ -32,8 +32,54 @@ java -jar selenium-server-standalone-xxx.jar
 ```
 
 
+---
+
+### centos下的golang+chromedriver
+
+https://blog.csdn.net/wkb342814892/article/details/81591394
+https://www.jianshu.com/p/32dd34da58cd
+
+#### 安装chrome-browser
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm --no-check-certificate  
+sudo yum install google-chrome-stable_current_x86_64.rpm
+————————————————
+版权声明：本文为CSDN博主「「已注销」」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/wkb342814892/article/details/81591394
+#### 下载并安装对应版本的chromedriver;
+
+#### 示例代码  
+```
+//链接本地的浏览器 chrome
+    caps := selenium.Capabilities{
+        //"browserName": "/Applications/Google Chrome Dev.app/Contents/MacOS/Google Chrome Dev",
+        "browserName": "Google Chrome Dev",
+    }
+
+    //禁止图片加载，加快渲染速度
+    imagCaps := map[string]interface{}{
+        "profile.managed_default_content_settings.images": 2,
+    }
+    chromeCaps := chrome.Capabilities{
+        Prefs: imagCaps,
+        Path:  "/Applications/Google Chrome Dev.app/Contents/MacOS/Google Chrome Dev",
+        Args: []string{
+            //静默执行请求
+            "--headless", // 设置Chrome无头模式，在linux下运行，需要设置这个参数，否则会报错
+            "--no-sandbox",
+            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36", // 模拟user-agent，防反爬
+        },
+    }
+    //以上是设置浏览器参数
+    caps.AddChrome(chromeCaps)
 
 
+    url := "xxx"
+    w_b1, err := selenium.NewRemote(caps, fmt.Sprintf("http://localhost:%d/wd/hub", port))
+```
+
+
+
+----
 
 
 

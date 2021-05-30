@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/tebeka/selenium"
+	"github.com/tebeka/selenium/chrome"
 	"net"
 	"os"
 	"time"
@@ -34,6 +35,17 @@ func init(){
 func main(){
 
 	capabilities  := selenium.Capabilities{"browserName": "chrome"}
+
+	chromecaps:=chrome.Capabilities{
+		Args: []string{
+			//静默执行请求
+			"--headless", // 设置Chrome无头模式，在linux下运行，需要设置这个参数，否则会报错
+			"--no-sandbox",
+			"--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36", // 模拟user-agent，防反爬
+		},
+	}
+	capabilities.AddChrome(chromecaps)
+
 	webDriver, err := selenium.NewRemote(capabilities, "")
 	if err!=nil{
 		logrus.Errorf("selenium.NewRemote error!err=%+v",err)
