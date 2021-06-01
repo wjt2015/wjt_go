@@ -41,6 +41,8 @@ func main(){
 	snapshot, err := db.GetSnapshot()
 	logrus.Infof("snapshot=%+v;err=%+v;",snapshot,err)
 
+	db.Write()
+
 }
 
 

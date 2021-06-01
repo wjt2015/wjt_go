@@ -18,3 +18,66 @@
 22:35:48.754361 db@open done T·32.934981ms
 22:35:48.754718 db@close closing
 22:35:48.754867 db@close done T·146.439µs
+=============== Jun 2, 2021 (CST) ===============
+00:06:18.687788 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+00:06:18.689349 version@stat F·[1] S·140B[140B] Sc·[0.25]
+00:06:18.689375 db@open opening
+00:06:18.689476 journal@recovery F·1
+00:06:18.689970 journal@recovery recovering @3
+00:06:18.700456 memdb@flush created L0@5 N·1 S·140B "golang,v3":"golang,v3"
+00:06:18.701503 version@stat F·[2] S·280B[280B] Sc·[0.50]
+00:06:18.718886 db@janitor F·4 G·0
+00:06:18.718953 db@open done T·29.558596ms
+00:06:18.719190 db@close closing
+00:06:18.719349 db@close done T·148.863µs
+=============== Jun 2, 2021 (CST) ===============
+00:06:55.071227 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+00:06:55.072313 version@stat F·[2] S·280B[280B] Sc·[0.50]
+00:06:55.072341 db@open opening
+00:06:55.072439 journal@recovery F·1
+00:06:55.072946 journal@recovery recovering @6
+00:06:55.084346 memdb@flush created L0@8 N·1 S·140B "golang,v5":"golang,v5"
+00:06:55.088658 version@stat F·[3] S·420B[420B] Sc·[0.75]
+00:06:55.105179 db@janitor F·5 G·0
+00:06:55.105238 db@open done T·32.881079ms
+00:06:55.105537 db@close closing
+00:06:55.105854 db@close done T·313.786µs
+=============== Jun 2, 2021 (CST) ===============
+00:08:00.473757 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+00:08:00.474916 version@stat F·[3] S·420B[420B] Sc·[0.75]
+00:08:00.474944 db@open opening
+00:08:00.475043 journal@recovery F·1
+00:08:00.475702 journal@recovery recovering @9
+00:08:00.489828 memdb@flush created L0@11 N·1 S·140B "golang,v7":"golang,v7"
+00:08:00.491873 version@stat F·[4] S·560B[560B] Sc·[1.00]
+00:08:00.506540 db@janitor F·6 G·0
+00:08:00.506597 db@open done T·31.635841ms
+00:08:00.506829 table@compaction L0·4 -> L1·0 S·560B Q·8
+00:08:00.506991 db@close closing
+00:08:00.508554 db@close done T·1.555905ms
+=============== Jun 2, 2021 (CST) ===============
+00:08:23.225428 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+00:08:23.225924 version@stat F·[4] S·560B[560B] Sc·[1.00]
+00:08:23.225954 db@open opening
+00:08:23.226071 journal@recovery F·1
+00:08:23.226688 journal@recovery recovering @12
+00:08:23.237081 memdb@flush created L0@14 N·1 S·140B "golang,v9":"golang,v9"
+00:08:23.239025 version@stat F·[5] S·700B[700B] Sc·[1.25]
+00:08:23.251735 db@janitor F·7 G·0
+00:08:23.251804 db@open done T·25.825255ms
+00:08:23.251989 table@compaction L0·5 -> L1·0 S·700B Q·10
+00:08:23.252180 db@close closing
+00:08:23.253019 db@close done T·836.513µs
+=============== Jun 2, 2021 (CST) ===============
+00:08:56.477034 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+00:08:56.477395 version@stat F·[5] S·700B[700B] Sc·[1.25]
+00:08:56.477414 db@open opening
+00:08:56.477489 journal@recovery F·1
+00:08:56.477920 journal@recovery recovering @15
+00:08:56.486945 memdb@flush created L0@17 N·1 S·140B "golang,v11":"golang,v11"
+00:08:56.488914 version@stat F·[6] S·840B[840B] Sc·[1.50]
+00:08:56.500940 db@janitor F·8 G·0
+00:08:56.500978 db@open done T·23.550994ms
+00:08:56.501176 table@compaction L0·6 -> L1·0 S·840B Q·12
+00:08:56.501381 db@close closing
+00:08:56.502606 db@close done T·1.221541ms
