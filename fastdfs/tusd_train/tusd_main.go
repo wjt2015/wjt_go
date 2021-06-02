@@ -5,13 +5,26 @@ import (
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"reflect"
+	"strings"
 
 	"github.com/tus/tusd/pkg/filestore"
 	tusd "github.com/tus/tusd/pkg/handler"
 )
 
 func main()  {
-	serv()
+	//serv()
+	strip()
+}
+
+
+func strip(){
+	s1:="ABCCD"
+	s2:="ABCCCDEF"
+	prefix:= strings.TrimPrefix(s2, s1)
+
+	logrus.Infof("prefix=%s",prefix)
+
+
 }
 
 func init()  {
