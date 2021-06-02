@@ -23,7 +23,7 @@ require (
 	github.com/sjqzhang/googleAuthenticator v0.0.0-20160926062737-f198f070e0b1
 	github.com/sjqzhang/goutil v0.0.0-20200618044433-2319148e0a46
 	github.com/sjqzhang/seelog v0.0.0-20180104061743-556439109558
-	github.com/sjqzhang/tusd v0.0.0-20190220031306-a6a9d78ef54a // indirect
+	//github.com/sjqzhang/tusd v0.0.0-20190220031306-a6a9d78ef54a // indirect
 	github.com/songtianyi/wechat-go v0.0.0-20201201042057-1b63788f9704
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tdewolff/parse/v2 v2.5.2 // indirect
