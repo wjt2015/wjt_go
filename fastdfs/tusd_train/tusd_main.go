@@ -19,7 +19,7 @@ func main()  {
 
 func strip(){
 	s1:="ABCCD"
-	s2:="ABCCCDEF"
+	s2:="2ABCCDEF"
 	prefix:= strings.TrimPrefix(s2, s1)
 
 	logrus.Infof("prefix=%s",prefix)
