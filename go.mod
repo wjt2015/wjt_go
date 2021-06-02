@@ -12,11 +12,14 @@ require (
 	github.com/gliderlabs/ssh v0.3.2
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/gocolly/colly/v2 v2.1.0
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/gopacket v1.1.19
 	github.com/jinzhu/gorm v1.9.16
 	github.com/json-iterator/go v1.1.10
 	github.com/mlogclub/simple v1.1.6
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/prometheus/client_golang v1.10.0 // indirect
+	github.com/prometheus/common v0.25.0 // indirect
 	github.com/radovskyb/watcher v1.0.7
 	github.com/shirou/gopsutil v3.21.4+incompatible
 	github.com/sirupsen/logrus v1.8.0
@@ -29,4 +32,5 @@ require (
 	github.com/tdewolff/parse/v2 v2.5.2 // indirect
 	github.com/tebeka/selenium v0.9.9
 	github.com/tus/tusd v1.1.0
+	golang.org/x/sys v0.0.0-20210601080250-7ecdf8ef093b // indirect
 )

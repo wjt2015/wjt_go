@@ -4,12 +4,22 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"reflect"
 
 	"github.com/tus/tusd/pkg/filestore"
 	tusd "github.com/tus/tusd/pkg/handler"
 )
 
-func main() {
+func main()  {
+	serv()
+}
+
+func init()  {
+	logrus.SetReportCaller(true)
+}
+
+
+func serv() {
 	// Create a new FileStore instance which is responsible for
 	// storing the uploaded file on disk in the specified directory.
 	// This path _must_ exist before tusd will store uploads in it.
@@ -38,6 +48,8 @@ func main() {
 		panic(fmt.Errorf("Unable to create handler: %s", err))
 	}
 
+	logrus.Infof("handlerType=%+v",reflect.ValueOf(handler))
+
 	// Start another goroutine for receiving events from the handler whenever
 	// an upload is completed. The event will contains details about the upload
 	// itself and the relevant HTTP request.
@@ -51,7 +63,11 @@ func main() {
 	// Right now, nothing has happened since we need to start the HTTP server on
 	// our own. In the end, tusd will start listening on and accept request at
 	// http://localhost:8080/files
-	http.Handle("/files/", http.StripPrefix("/files/", handler))
+	h := http.StripPrefix("/files/", handler)
+
+	logrus.Infof("h.type=%+v",reflect.ValueOf(h).Type())
+
+	http.Handle("/files/",h )
 
 	port:=8090
 	logrus.Infof("http server listen on port=%d",port)

@@ -3740,6 +3740,7 @@ func (s *Server) initTus() {
 		panic("initTus error!")
 	}
 	go func() {
+		//转移日志文件;
 		for {
 			if fi, err := fileLog.Stat(); err != nil {
 				logrus.Error(err)
