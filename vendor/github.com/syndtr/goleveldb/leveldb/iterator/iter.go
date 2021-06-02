@@ -41,6 +41,7 @@ type IteratorSeeker interface {
 
 	// Next moves the iterator to the next key/value pair.
 	// It returns false if the iterator is exhausted.
+	
 	Next() bool
 
 	// Prev moves the iterator to the previous key/value pair.

@@ -3,6 +3,10 @@ package main
 import (
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/syndtr/goleveldb/leveldb/util"
+	"strconv"
 )
 
 func init(){
@@ -12,7 +16,7 @@ func init(){
 
 func main(){
 
-	db,err:=leveldb.OpenFile("wjt_leveldb",nil)
+	db,err:=leveldb.OpenFile("data/wjt_leveldb",nil)
 	if err!=nil{
 		logrus.Panicf("openfile error!err=%+v",err)
 	}
@@ -41,10 +45,62 @@ func main(){
 	snapshot, err := db.GetSnapshot()
 	logrus.Infof("snapshot=%+v;err=%+v;",snapshot,err)
 
-	db.Write()
+	batch(db);
 
 }
 
+func batch(db *leveldb.DB){
+
+	batch:=&leveldb.Batch{
+	}
+	var i,j,n int
+	i=0
+	j=0
+	n=10
+	for i<n {
+		k:=[]byte(strconv.Itoa(i))
+		v:=[]byte(strconv.Itoa(j))
+		batch.Put(k,v)
+		i++
+		j++
+	}
+	batch.Put([]byte(strconv.Itoa(3)),[]byte(strconv.Itoa(3)))
+	db.Write(batch,nil)
+
+	db.Put([]byte(strconv.Itoa(3)),[]byte(strconv.Itoa(3)),nil)
+
+	logrus.Infof("start show:")
+	 r := &util.Range{
+		Start: []byte(strconv.Itoa(2)),
+		Limit: []byte(strconv.Itoa(8)),
+	}
+	it := db.NewIterator(r, nil)
+	defer it.Release()
+	for it.Next(){
+		k:=it.Key()
+		v:=it.Value()
+		logrus.Infof("k=%+v;v=%+v;",k,v)
+	}
+
+	logrus.Infof("finish show!")
+
+}
+
+
+func bloomFilter(){
+
+	fileName:="data/wjt_leveldb_bloom_filter"
+	options:=opt.Options{
+		Filter: filter.NewBloomFilter(10),
+	}
+	db, err := leveldb.OpenFile(fileName, &options)
+	if err!=nil{
+		logrus.Panicf("open file error!err=%+v",err)
+	}
+	defer db.Close()
+
+
+}
 
 
 
