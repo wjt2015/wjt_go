@@ -18,8 +18,10 @@ import (
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sirupsen/logrus"
 	"github.com/sjqzhang/googleAuthenticator"
-	"github.com/tus/tusd"
-	//"github.com/sjqzhang/tusd"
+	"github.com/sjqzhang/tusd/filestore"
+
+	//"github.com/tus/tusd"
+	"github.com/sjqzhang/tusd"
 	"image"
 	"image/jpeg"
 	"image/png"
