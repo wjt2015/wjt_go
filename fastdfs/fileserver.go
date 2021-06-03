@@ -4048,7 +4048,7 @@ func (s *Server) Start() {
 
 	logrus.Infof("Listen on %+v", Config().Addr)
 
-	gloablConfig = Config()
+	globalConfig := Config()
 	logrus.Infof("globalConfig=%+v\n", GlobalConfig{})
 
 	if Config().EnableHttps {
