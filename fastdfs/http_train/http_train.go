@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"time"
 )
 
 func init()  {
@@ -26,7 +27,8 @@ func (httpHandler* MyHttpHandler) ServeHTTP(resp http.ResponseWriter, req *http.
 }
 
 func main(){
-	httpServe()
+	//httpServe()
+	chanFunc()
 }
 
 func httpServe()  {
@@ -51,6 +53,38 @@ func httpServe()  {
 	logrus.Infof("http server close on port=%d",port)
 }
 
+func chanFunc(){
+	n:=10
+	msgs:=make(chan int,n)
+	done:=make(chan bool)
+	defer close(msgs)
+
+	go func(){
+		ticker:=time.NewTicker(10*time.Millisecond)
+		for v:=range ticker.C{
+			logrus.Infof("c_time=%+v;",v)
+			select {
+			case tv,ok:=<-done:
+				logrus.Infof("child interrupt!tv=%+v;ok=%+v;",tv,ok)
+				return
+			default:
+				logrus.Infof("default!msgs=%+v",msgs)
+				logrus.Infof("send msg!v=%+v",<-msgs)
+			}
+		}
+	}()
+
+	//producer
+	for i:=0;i<n;i++{
+		msgs<-i
+	}
+
+	time.Sleep(10*time.Second)
+	close(done)
+	time.Sleep(1*time.Second)
+	logrus.Infof("main return!")
+
+}
 
 
 
