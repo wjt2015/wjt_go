@@ -34,11 +34,21 @@ func httpServe()  {
 	port:=60000
 	httpServer := http.Server{
 		Addr: fmt.Sprintf(":%d",port),
-		Handler: &MyHttpHandler{},
+		//Handler: &MyHttpHandler{},
 	}
+	defer httpServer.Close()
 	logrus.Infof("http server listen on port=%d",port)
-	httpServer.ListenAndServe()
+	uri:="/query.json"
+	http.HandleFunc(uri,func(resp http.ResponseWriter,req *http.Request){
+		logrus.Infof("uri=%s",uri)
+	})
+	uri="create.json"
+	http.HandleFunc(uri,func(resp http.ResponseWriter,req *http.Request){
+		logrus.Infof("uri=%s",uri)
+	})
 
+	httpServer.ListenAndServe()
+	logrus.Infof("http server close on port=%d",port)
 }
 
 
