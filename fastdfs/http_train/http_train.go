@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -28,7 +29,8 @@ func (httpHandler* MyHttpHandler) ServeHTTP(resp http.ResponseWriter, req *http.
 
 func main(){
 	//httpServe()
-	chanFunc()
+	//chanFunc()
+	ctxFunc()
 }
 
 func httpServe()  {
@@ -83,8 +85,57 @@ func chanFunc(){
 	close(done)
 	time.Sleep(1*time.Second)
 	logrus.Infof("main return!")
-
 }
+
+func targetFunc(ctx context.Context){
+	time.Sleep(1*time.Second)
+	logrus.Infof("---;targetFunc")
+}
+
+func ctxFunc(){
+	parentCtx:=context.Background()
+	ctx,cancelFunc:=context.WithTimeout(parentCtx,3*time.Second)
+
+	deadline, ok := ctx.Deadline()
+	logrus.Infof("deadline=%+v;ok=%+v;",deadline,ok)
+	cancelFunc()
+
+	go targetFunc(ctx)
+
+	b:=true
+	for b{
+		select {
+		case <- ctx.Done():
+			errV,ok:=ctx.Err().(error)
+			logrus.Infof("errV=%+v;ok=%+v;",errV,ok)
+
+			if ok{
+				if errV==context.DeadlineExceeded{
+					logrus.Infof("context.DeadlineExceeded")
+					//return
+				}else if errV==context.Canceled{
+					logrus.Infof("context.Canceled")
+					//return
+				}else{
+					logrus.Infof("done for other reason")
+				}
+			}
+
+			b=false
+		default:
+			time.Sleep(time.Second)
+			logrus.Infof("sleep 1s!")
+		}//select
+	}//for
+	time.Sleep(3*time.Second)
+
+	deadline, ok = ctx.Deadline()
+	logrus.Infof("deadline=%+v;ok=%+v;",deadline,ok)
+
+	logrus.Infof("ctxFunc() finish!")
+}
+
+
 
 
 
