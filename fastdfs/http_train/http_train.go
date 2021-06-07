@@ -30,7 +30,8 @@ func (httpHandler* MyHttpHandler) ServeHTTP(resp http.ResponseWriter, req *http.
 func main(){
 	//httpServe()
 	//chanFunc()
-	ctxFunc()
+	//ctxFunc()
+	ctxFuncB()
 }
 
 func httpServe()  {
@@ -135,6 +136,58 @@ func ctxFunc(){
 	logrus.Infof("ctxFunc() finish!")
 }
 
+
+func ctxFuncB(){
+	parentCtx:=context.Background()
+	deadline,ok:=parentCtx.Deadline()
+	logrus.Infof("parentCtx=%+v;deadline=%+v;ok=%+v;Done=%+v;",parentCtx,deadline,ok,parentCtx.Done())
+
+	withTimeoutCtx, cancelFunc := context.WithTimeout(parentCtx, 8*time.Second)
+	logrus.Infof("withTimeoutCtx=%+v;cancelFunc=%+v;",withTimeoutCtx,cancelFunc)
+
+	bTimeoutCtx, bCancelFunc := context.WithTimeout(withTimeoutCtx, 5*time.Second)
+	logrus.Infof("bTimeoutCtx=%+v;bCancelFunc=%+v;",bTimeoutCtx, bCancelFunc)
+
+	go func(){
+		//任务A;
+		stop:=false
+		for !stop{
+			logrus.Infof("taskA is doing!err=%+v;",withTimeoutCtx.Err())
+			select {
+			case <-withTimeoutCtx.Done():
+				logrus.Infof("taskA stop!err=%+v;",withTimeoutCtx.Err())
+				stop=true
+				break
+			default:
+				//logrus.Infof("taskA sleeping!")
+				time.Sleep(1*time.Second)
+			}
+		}
+	}()
+
+	go func(){
+		//taskB
+		stop:=false
+		for !stop{
+			logrus.Infof("taskB is doing!err=%+v;",bTimeoutCtx.Err())
+			select {
+			case <-bTimeoutCtx.Done():
+				logrus.Infof("taskB stop!err=%+v;",bTimeoutCtx.Err())
+				stop=true
+				break
+			default:
+				time.Sleep(1*time.Second)
+				break
+			}
+		}
+	}()
+	time.Sleep(2*time.Second)
+	cancelFunc()
+
+	time.Sleep(10*time.Second)
+
+	logrus.Infof("ctxFuncB finish!")
+}
 
 
 
