@@ -25,8 +25,8 @@ func strip(){
 	prefix:= strings.TrimPrefix(s2, s1)
 
 	logrus.Infof("prefix=%s",prefix)
-
-
+	stripPrefixHandler:= http.StripPrefix("/bytedance/", nil)
+	logrus.Infof("stripPrefixHandler=%+v;",stripPrefixHandler)
 }
 
 func init()  {
@@ -120,6 +120,14 @@ func filestoreB(){
 
 	info,err=upload.GetInfo(ctx)
 	logrus.Infof("new_info=%+v;err=%+v;",info,err)
+
+	//http.HandleFunc()
+	//func (mux *ServeMux) Handle(pattern string, handler Handler)
+	//DefaultServeMux.HandleFunc(pattern, handler)
+
+	//http.Handle()
+	//func (mux *ServeMux) Handle(pattern string, handler Handler)
+	//func Handle(pattern string, handler Handler) { DefaultServeMux.Handle(pattern, handler) }
 	/*
 	reader, err := upload.GetReader(ctx)
 	content, err := ioutil.ReadAll(reader)
@@ -133,3 +141,20 @@ func filestoreB(){
 	logrus.Infof("newUpload=%+v;err=%+v;",newUpload,err)
 	*/
 }
+
+func composerHandler(){
+
+	composer:= tusd.NewStoreComposer()
+	dir:="./data/tusd_upload"
+	store:= filestore.FileStore{Path: dir}
+	store.UseIn(composer)
+	handler, err := tusd.NewHandler(tusd.Config{
+		StoreComposer: composer,
+		BasePath:      dir,
+	})
+	logrus.Infof("handler=%+v;err=%+v;",handler,err)
+
+	http.Handle("/abc/",http.StripPrefix("/abc/",handler))
+
+}
+
