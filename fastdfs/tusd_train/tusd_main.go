@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
@@ -118,11 +116,11 @@ func filestoreB(){
 	logrus.Infof("info=%+v;err=%+v;",info,err)
 
 	writeChunk, err := upload.WriteChunk(ctx, 0, strings.NewReader("hello world"))
-	logrus.Infof("writeChunk=%+v;err=%+v;",writeChunk,err)
+	logrus.Infof("writeChunk=%+v;err=%+v;upload=%+v;",writeChunk,err,upload)
 
 	info,err=upload.GetInfo(ctx)
 	logrus.Infof("new_info=%+v;err=%+v;",info,err)
-
+	/*
 	reader, err := upload.GetReader(ctx)
 	content, err := ioutil.ReadAll(reader)
 	logrus.Infof("context=%+v;err=%+v;",string(content),err)
@@ -133,4 +131,5 @@ func filestoreB(){
 	logrus.Infof("new2_info=%+v;err=%+v;",info,err)
 	newUpload, err := store.GetUpload(ctx, info.ID)
 	logrus.Infof("newUpload=%+v;err=%+v;",newUpload,err)
+	*/
 }
