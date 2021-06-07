@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
@@ -13,13 +16,14 @@ import (
 
 func main()  {
 	//serv()
-	strip()
+	//strip()
+	filestoreB()
 }
 
 
 func strip(){
 	s1:="ABCCD"
-	s2:="2ABCCDEF"
+	s2:="ABCCDEF"
 	prefix:= strings.TrimPrefix(s2, s1)
 
 	logrus.Infof("prefix=%s",prefix)
@@ -40,7 +44,7 @@ func serv() {
 	// a remote FTP server, you can implement your own storage backend
 	// by implementing the tusd.DataStore interface.
 	store := filestore.FileStore{
-		Path: "./uploads",
+		Path: "./data/tusd_uploads",
 	}
 
 	// A storage backend for tusd may consist of multiple different parts which
@@ -88,5 +92,45 @@ func serv() {
 	if err != nil {
 		panic(fmt.Errorf("Unable to listen: %s", err))
 	}
+
+	logrus.Infof("tusd_main finish!")
 }
 
+
+func filestoreB(){
+	//参考filestore.go,filestore_test.go,测试学习;
+	dir:="./data/tusd_upload"
+	store:=filestore.FileStore{
+		Path: dir,
+	}
+	logrus.Infof("store=%+v",store)
+	ctx:=context.Background()
+	upload, err := store.NewUpload(ctx, tusd.FileInfo{
+		Size: 42,
+		MetaData: map[string]string{
+			"hello": "world",
+		},
+	})
+
+	logrus.Infof("upload=%+v;err=%+v;",upload,err)
+
+	info, err := upload.GetInfo(ctx)
+	logrus.Infof("info=%+v;err=%+v;",info,err)
+
+	writeChunk, err := upload.WriteChunk(ctx, 0, strings.NewReader("hello world"))
+	logrus.Infof("writeChunk=%+v;err=%+v;",writeChunk,err)
+
+	info,err=upload.GetInfo(ctx)
+	logrus.Infof("new_info=%+v;err=%+v;",info,err)
+
+	reader, err := upload.GetReader(ctx)
+	content, err := ioutil.ReadAll(reader)
+	logrus.Infof("context=%+v;err=%+v;",string(content),err)
+	if rc,ok:=reader.(io.Closer);ok{
+		rc.Close()
+	}
+	info,err=upload.GetInfo(ctx)
+	logrus.Infof("new2_info=%+v;err=%+v;",info,err)
+	newUpload, err := store.GetUpload(ctx, info.ID)
+	logrus.Infof("newUpload=%+v;err=%+v;",newUpload,err)
+}
