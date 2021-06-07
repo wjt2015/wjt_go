@@ -58,7 +58,7 @@ func httpServe()  {
 	http.HandleFunc(uri,func(resp http.ResponseWriter,req *http.Request){
 		logrus.Infof("uri=%s",uri)
 	})
-
+	//这里应用了context.Context;
 	httpServer.ListenAndServe()
 	logrus.Infof("http server close on port=%d",port)
 }
