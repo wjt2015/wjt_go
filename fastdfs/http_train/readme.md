@@ -17,5 +17,9 @@ curl -I --cookie 'a=b;c=d;e=f' --header 'Content-Type:image' 'http://localhost:6
 
 curl -F 'fileName=@zhangrunzhen_hua.mp3' 'http://localhost:60000/files/'
 
+
+curl 'http://localhost:60000/query.json'
+curl 'http://localhost:60000/create.json'
+
 ---  
 
