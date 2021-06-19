@@ -22,5 +22,9 @@ go tool vet <directory|files>
 ```
 
 
+禁止编译优化实例:
+```
+go build -gcflags="-N -l" -o bin/tusd_main ./fastdfs/tusd_train/
+```
 
 
