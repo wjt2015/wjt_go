@@ -10,11 +10,12 @@ func init()  {
 
 
 func main(){
-	httpServe()
+	//httpServe()
 	//chanFunc()
 	//ctxFunc()
 	//ctxFuncB()
 	//listen()
+	ticker()
 }
 
 
