@@ -15,7 +15,8 @@ func main(){
 	//ctxFunc()
 	//ctxFuncB()
 	//listen()
-	ticker()
+	//ticker()
+	httpClient()
 }
 
 
