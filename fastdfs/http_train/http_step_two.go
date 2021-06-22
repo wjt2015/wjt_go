@@ -107,6 +107,8 @@ func httpClient()  {
 	}*/
 	
 	logrus.Infof("httpClient finish!")
+
+	//http.bodyEOFSignal
 }
 
 
