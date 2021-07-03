@@ -33,6 +33,12 @@ func init(){
 }
 
 func main(){
+	//webdriverA()
+
+
+}
+
+func webdriverA(){
 
 	capabilities  := selenium.Capabilities{"browserName": "chrome"}
 	chromecaps:=chrome.Capabilities{
