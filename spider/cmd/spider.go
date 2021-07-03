@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"time"
+	"wjt_go/spider"
 )
 
 func pickUnusedPort() (int, error) {
@@ -34,7 +35,7 @@ func init(){
 
 func main(){
 	//webdriverA()
-
+	spider.Weibo()
 
 }
 
