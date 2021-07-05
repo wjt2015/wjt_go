@@ -8,6 +8,9 @@ https://github.com/tebeka/selenium
 webdriver下载:  
 http://npm.taobao.org/mirrors/chromedriver/
 
+centos8+chrome
+yum install -y google-chrome-stable.x86_64
+
 ---
 ### golang selenium
 
