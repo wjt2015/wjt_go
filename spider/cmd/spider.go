@@ -1,6 +1,5 @@
 package main
 
-
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,8 @@ func init(){
 
 func main(){
 	//webdriverA()
-	spider.Weibo()
+	//spider.Weibo()
+	spider.Douban()
 
 }
 

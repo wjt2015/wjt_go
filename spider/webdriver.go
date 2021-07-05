@@ -21,7 +21,9 @@ func GetWebdriver() (selenium.WebDriver,error){
 	cap.AddChrome(chromecaps)
 	return selenium.NewRemote(cap,"")
 }
-
+/**
+微博超话;
+ */
 func WeiboChaoHua(webdriver selenium.WebDriver,url string){
 	webdriver.SetPageLoadTimeout(2*time.Second)
 	err:= webdriver.Get(url)
@@ -35,7 +37,6 @@ func Weibo(){
 	webdriver, err := GetWebdriver()
 	logrus.Infof("webdriver=%+v;err=%+v;",webdriver,err)
 	WeiboChaoHua(webdriver,url)
-
 }
 
 

@@ -8,11 +8,21 @@ https://github.com/tebeka/selenium
 webdriver下载:  
 http://npm.taobao.org/mirrors/chromedriver/
 
-
+---
 ### golang selenium
 
-golang Selenium WebDriver 使用记录
+selenium go官网:  
+https://github.com/tebeka/selenium  
+https://www.w3.org/TR/webdriver/  
+https://pkg.go.dev/github.com/tebeka/selenium   
+
+
+golang Selenium WebDriver 使用记录  
 https://golangnote.com/topic/230.html
+
+Golang+selenium+chrome headless + goquery 在Linux 上作爬虫实践    
+https://golangnote.com/topic/232.html
+---
 
 ### golang selenium应用方法(以chrome browser为例)
 根据本机chrome browser版本下载对应版本的webdriver,并安装,将路径加入PATH;
