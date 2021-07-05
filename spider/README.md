@@ -22,6 +22,13 @@ https://golangnote.com/topic/230.html
 
 Golang+selenium+chrome headless + goquery 在Linux 上作爬虫实践    
 https://golangnote.com/topic/232.html
+
+selenium用法:   
+https://cuiqingcai.com/2599.html
+
+selenium在CentOS服务端运行  
+https://segmentfault.com/a/1190000022589195  
+
 ---
 
 ### golang selenium应用方法(以chrome browser为例)
