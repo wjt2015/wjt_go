@@ -4,21 +4,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func init()  {
+func init() {
 	logrus.SetReportCaller(true)
 }
 
-
-func main(){
+func main() {
 	//httpServe()
 	//chanFunc()
 	//ctxFunc()
 	//ctxFuncB()
 	//listen()
 	//ticker()
-	httpClient()
+	//httpClient()
+	transport()
 }
-
-
-
-
