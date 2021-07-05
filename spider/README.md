@@ -121,6 +121,18 @@ go run -mod=mod ./spider/cmd/
 ```
 ----
 
+## 将chromedriver加入PATH之后,执行chromedriver遇到的问题及解决办法:
+
+```
+chromedriver: error while loading shared libraries: libnss3.so: cannot open shared object file: No such file or directory
+yum install -y nss-devel.x86_64
+```
+
+```
+chromedriver: error while loading shared libraries: libxcb.so.1: cannot open shared object file: No such file or directory
+yum install -y libxcb-devel.x86_64
+```
+----
 
 
 
