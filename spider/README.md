@@ -102,8 +102,13 @@ sudo yum install google-chrome-stable_current_x86_64.rpm
 ```
 
 
+## 启动方法:
+```
+wjt_go目录下:
+java -jar spider/selenium-server-standalone-3.13.0.jar
 
-
+go run -mod=mod ./spider/cmd/
+```
 ----
 
 
